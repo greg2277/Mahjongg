@@ -82,7 +82,7 @@ export const LESSONS: Lesson[] = [
     steps: [
       {
         title: 'Sections by theme',
-        body: 'Each year the card groups hands: 2024-2025, Year, 2468, Quints, Consecutive Run, 13579, Winds-Dragons, 369, Singles & Pairs.',
+        body: 'Each year the card groups hands into sections. The 2026 card has: 2026 (year), 2468, Any Like Numbers, Quints, Consecutive Run, 13579, Winds & Dragons, 369, Singles & Pairs.',
       },
       {
         title: 'Concealed vs Exposed',

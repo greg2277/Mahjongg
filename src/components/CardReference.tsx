@@ -14,16 +14,17 @@ import {
 import { TileSortControls } from '@/src/components/TileSortControls';
 import { sortTiles, type SortMode } from '@/src/games/nmjl/sort';
 
-// Side-effect import: registers the NMJL 2025 card into the rule registry
-// so getYearCard(2025) returns the hand patterns.
-import '@/src/games/nmjl/cards/2025';
+// Side-effect import: registers the NMJL 2026 card into the rule registry
+// so getYearCard(2026) returns the hand patterns.
+import '@/src/games/nmjl/cards/2026';
+import { CURRENT_CARD_YEAR } from '@/src/games/nmjl/currentCard';
 
 // ─────────── Category metadata ───────────
 
 type CategoryKey = HandPattern['category'];
 
 const CATEGORY_META: Record<CategoryKey, { label: string; tone: 'jade' | 'red' | 'gold' | 'neutral' }> = {
-  '2025': { label: '2025', tone: 'red' },
+  '2026': { label: '2026', tone: 'red' },
   '2468': { label: 'Even (2468)', tone: 'jade' },
   '13579': { label: 'Odd (13579)', tone: 'jade' },
   '369': { label: '3·6·9', tone: 'gold' },
@@ -51,6 +52,16 @@ function matcherToSpec(m: TileMatcher, anySuitIndex: number): TileSpec {
       return { suit: 'dragon', value: m.value };
     case 'flower':
       return { suit: 'flower', value: 'F' };
+    case 'anyDragon':
+      return { suit: 'dragon', value: 'R' }; // display as Red dragon placeholder
+    case 'matchingDragon':
+      return { suit: 'dragon', value: 'G' }; // display as Green dragon placeholder
+    case 'oppositeDragon':
+      return { suit: 'dragon', value: 'Wh' }; // display as White dragon placeholder
+    case 'consec':
+      return { suit: ANY_SUITS[anySuitIndex % ANY_SUITS.length], value: String(m.offset + 1) };
+    case 'anyOf':
+      return { suit: ANY_SUITS[anySuitIndex % ANY_SUITS.length], value: m.values[0] ?? '?' };
   }
 }
 
@@ -180,7 +191,7 @@ function HandRow({ pattern, sortMode }: { pattern: HandPattern; sortMode: SortMo
   );
 }
 
-export function CardReference({ year = 2025 }: { year?: number }) {
+export function CardReference({ year = CURRENT_CARD_YEAR }: { year?: number }) {
   const { theme } = useTheme();
   const card = useMemo(() => getYearCard(year), [year]);
   const [sortMode, setSortMode] = useState<SortMode>('suit');

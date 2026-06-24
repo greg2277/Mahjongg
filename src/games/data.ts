@@ -1,7 +1,7 @@
 // Shared data + helpers for the 6 mini-games.
 //
-// All rounds in this file are validated against the NMJL 2025 card
-// (see src/games/nmjl/cards/2025.ts) and standard American Mahjong
+// All rounds in this file are validated against the NMJL 2026 card
+// (see src/games/nmjl/cards/2026.ts) and standard American Mahjong
 // rules. Every multiple-choice round has exactly ONE correct answer
 // that is the only legal NMJL play; distractors are plausible but
 // rule-violating, never ambiguous "could also be right" options.
@@ -308,16 +308,17 @@ export const MATCH_ROUNDS: MatchRound[] = [
   },
 ];
 
-// Card Reader — translate tiles to a hand line on the NMJL 2025 card.
+// Card Reader — translate tiles to a hand line on the NMJL 2026 card.
 export const READER_ROUNDS: ReaderRound[] = [
   {
     prompt: 'Identify the hand line from these tiles:',
     tiles: [
-      t('flower'), t('flower'), t('flower'), t('flower'),
-      t('crak', '2'), t('crak', '0'), t('crak', '2'), t('crak', '5'),
-      t('wind', 'N'), t('wind', 'E'), t('wind', 'S'), t('wind', 'W'),
+      t('flower'), t('flower'), t('flower'),
+      t('crak', '2'), t('dragon', 'Wh'), t('crak', '2'), t('crak', '6'),
+      t('crak', '2'), t('crak', '2'), t('crak', '2'),
+      t('crak', '6'), t('crak', '6'), t('crak', '6'), t('crak', '6'),
     ],
-    options: ['FFFF 2025 NEWS', 'FFFF 2024 NEWS', '2025 NEWS DDDD', 'FF 2-0-2-5 NEWS NEWS'],
+    options: ['FFF 2026 222 6666', 'FFF 2026 NEWS', 'FF 2026 2026 2026', 'FFF 2026 666 2222'],
     correctIndex: 0,
   },
   {
@@ -446,17 +447,17 @@ export const READER_ROUNDS: ReaderRound[] = [
 // Charleston Trainer — pick the 3 worst-fitting tiles to pass.
 export const CHARLESTON_ROUNDS: CharlestonRound[] = [
   {
-    targetHand: 'Year hand: FFFF 2025 NEWS',
+    targetHand: 'Year hand: FFF 2026 222 6666',
     hand: [
-      t('flower'), t('flower'),                    // 0,1 keep
-      t('crak', '2'), t('crak', '5'),               // 2,3 keep
-      t('wind', 'N'), t('wind', 'E'),               // 4,5 keep
-      t('bam', '7'), t('bam', '8'), t('dot', '3'),  // 6,7,8 PASS
-      t('crak', '6'),                                // 9 keep
-      t('joker'),                                    // 10 keep
-      t('dot', '9'), t('crak', '2'),
+      t('flower'), t('flower'), t('flower'),        // 0,1,2 keep
+      t('crak', '2'), t('dragon', 'Wh'),             // 3,4 keep (2 and 0=DWh)
+      t('crak', '2'), t('crak', '6'),               // 5,6 keep
+      t('bam', '7'), t('bam', '8'), t('dot', '3'),  // 7,8,9 PASS
+      t('crak', '2'),                               // 10 keep
+      t('joker'),                                    // 11 keep
+      t('crak', '6'),
     ],
-    correctIndexes: [6, 7, 8],
+    correctIndexes: [7, 8, 9],
   },
   {
     targetHand: 'Like Numbers — three pungs of 5s',
@@ -550,7 +551,7 @@ export const CHARLESTON_ROUNDS: CharlestonRound[] = [
     correctIndexes: [9, 10, 11],
   },
   {
-    targetHand: 'Quints — FF 11111 22222 (concealed)',
+    targetHand: 'Quints — FF 11111 22 33333 (Any 3 Consec. Nos.)',
     hand: [
       t('flower'), t('flower'),
       t('bam', '1'), t('bam', '1'), t('bam', '1'),
@@ -561,32 +562,33 @@ export const CHARLESTON_ROUNDS: CharlestonRound[] = [
     correctIndexes: [10, 11, 12],
   },
   {
-    targetHand: 'Year hand: FF 2222 0000 2222 5555',
+    targetHand: 'Year hand: 222 000 2222 6666 (Any 3 Suits)',
     hand: [
-      t('flower'), t('flower'),
-      t('bam', '2'), t('bam', '2'),
-      t('crak', '0'), t('crak', '0'),
-      t('dot', '5'), t('dot', '5'),
-      t('joker'),
-      t('wind', 'W'), t('dragon', 'G'), t('bam', '7'), // 9,10,11 PASS — unused in classic Year
-      t('crak', '2'),
+      t('bam', '2'), t('bam', '2'), t('bam', '2'),  // 0,1,2 keep
+      t('dragon', 'Wh'), t('dragon', 'Wh'),           // 3,4 keep (000)
+      t('crak', '2'), t('crak', '2'),                 // 5,6 keep
+      t('joker'),                                      // 7 keep
+      t('dot', '6'),                                   // 8 keep
+      t('wind', 'W'), t('dragon', 'G'), t('bam', '7'), // 9,10,11 PASS — off-line
+      t('crak', '6'),
     ],
     correctIndexes: [9, 10, 11],
   },
 ];
 
-// Hand Picker — choose the best target hand from the NMJL 2025 card.
+// Hand Picker — choose the best target hand from the NMJL 2026 card.
 export const HAND_PICKER_ROUNDS: HandPickerRound[] = [
   {
     hand: [
       t('flower'), t('flower'), t('flower'),
-      t('crak', '2'), t('crak', '0'),
-      t('wind', 'N'), t('wind', 'E'), t('wind', 'S'), t('wind', 'W'),
-      t('joker'), t('crak', '5'), t('crak', '2'), t('bam', '7'),
+      t('crak', '2'), t('dragon', 'Wh'),
+      t('crak', '2'), t('crak', '6'),
+      t('crak', '2'), t('crak', '2'),
+      t('joker'), t('crak', '6'), t('crak', '6'), t('bam', '7'),
     ],
-    options: ['369', 'Year (FFFF 2025 NEWS)', 'Singles & Pairs', 'Like Numbers'],
+    options: ['369', 'Year (FFF 2026 222 6666)', 'Singles & Pairs', 'Like Numbers'],
     correctIndex: 1,
-    reason: 'Three flowers + full NEWS + year digits 2,0,2,5 = strong Year hand foundation.',
+    reason: 'Three flowers + year digits 2,0,2,6 + multiple 2s and 6s = strong 2026 Year hand foundation.',
   },
   {
     hand: [

@@ -67,7 +67,7 @@ export default function LearnScreen() {
                   NMJL Card Reference
                 </Text>
                 <Text style={{ color: theme.textSubtle, fontSize: 12, marginTop: 2 }}>
-                  Browse every 2025 hand pattern with live tiles.
+                  Browse every 2026 hand pattern with live tiles.
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textSubtle} />

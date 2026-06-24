@@ -11,6 +11,7 @@ import PrimaryButton from '@/src/components/PrimaryButton';
 import { Tile, type TileSuit } from '@/src/components/Tile';
 import { useStatsSync } from '@/src/hooks/useStatsSync';
 import { validateHand, getYearCard, isJoker, type Tile as RuleTile } from '@/src/games/nmjl';
+import { CURRENT_CARD_YEAR } from '@/src/games/nmjl/currentCard';
 import { OnboardingTour, type TourStep } from '@/src/components/OnboardingTour';
 import { HandAnalysisMeter } from '@/src/components/HandAnalysisMeter';
 import { TileSortControls } from '@/src/components/TileSortControls';
@@ -188,7 +189,7 @@ export default function PracticeScreen() {
   const [hintPattern, setHintPattern] = useState<string | null>(null);
   const recordedRef = useRef(false);
 
-  const card = useMemo(() => getYearCard(2026), []);
+  const card = useMemo(() => getYearCard(CURRENT_CARD_YEAR), []);
 
   const pushLog = useCallback((msg: string) => {
     setLog((l) => [msg, ...l].slice(0, 8));
@@ -201,7 +202,7 @@ export default function PracticeScreen() {
   const canDeclareMahjong = useMemo(() => {
     if (state.phase !== 'awaiting-discard') return false;
     if (myHand.length !== 14) return false;
-    return validateHand(myHand, 2026).valid;
+    return validateHand(myHand, CURRENT_CARD_YEAR).valid;
   }, [myHand, state.phase]);
 
   // ── PLAYER ACTIONS ──────────────────────────────────────────────────
@@ -326,7 +327,7 @@ export default function PracticeScreen() {
   }, [pushLog]);
 
   const declareMahjong = useCallback(() => {
-    const result = validateHand(myHand, 2026);
+    const result = validateHand(myHand, CURRENT_CARD_YEAR);
     if (!result.valid) {
       pushLog('That hand does not match a line on the card yet.');
       return;
@@ -382,7 +383,7 @@ export default function PracticeScreen() {
         hands[seat].push(drawn);
 
         // AI win check
-        const aiResult = hands[seat].length === 14 ? validateHand(hands[seat], 2026) : { valid: false } as ReturnType<typeof validateHand>;
+        const aiResult = hands[seat].length === 14 ? validateHand(hands[seat], CURRENT_CARD_YEAR) : { valid: false } as ReturnType<typeof validateHand>;
         if (aiResult.valid) {
           const result = aiResult;
           pushLog(`${SEATS[seat]} declared Mahjong!`);
@@ -622,7 +623,7 @@ export default function PracticeScreen() {
 
               {/* Hand analysis */}
               <Card variant="elevated" padding={14}>
-                <HandAnalysisMeter hand={myHand} year={2026} />
+                <HandAnalysisMeter hand={myHand} year={CURRENT_CARD_YEAR} />
               </Card>
 
               {/* Activity log */}
