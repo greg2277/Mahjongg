@@ -160,7 +160,7 @@ export const LESSONS: Lesson[] = [
     id: 'reading-lines',
     tier: 'intermediate',
     title: 'Decoding Card Lines',
-    summary: 'FFFF 2024 NEWS — translating shorthand into tiles.',
+    summary: 'FFFF 2026 NEWS — translating shorthand into tiles.',
     duration: '6 min',
     steps: [
       {
