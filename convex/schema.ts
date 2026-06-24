@@ -118,6 +118,9 @@ export default defineSchema({
     eloAvg: v.number(),
     turnSeat: v.optional(v.number()),
     turnDeadline: v.optional(v.number()),
+    // Monotonic move-sequence counter, allocated atomically on the room doc to
+    // avoid duplicate seq values under concurrent move submissions (TOCTOU).
+    moveSeq: v.optional(v.number()),
     lastActionAt: v.number(),
     createdAt: v.number(),
   })
@@ -137,6 +140,13 @@ export default defineSchema({
   })
     .index("by_room_seq", ["roomId", "seq"])
     .index("by_room_at", ["roomId", "at"]),
+
+  // Durable, database-backed rate-limit state (sliding window per user).
+  // Replaces the in-memory map that reset on every Convex cold start.
+  rateLimits: defineTable({
+    key: v.string(), // e.g. userId, or `${userId}:${action}`
+    hits: v.array(v.number()), // request timestamps within the current window
+  }).index("by_key", ["key"]),
 
   // Matchmaking queue
   matchmakingQueue: defineTable({

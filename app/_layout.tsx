@@ -1,12 +1,12 @@
 import { Stack } from 'expo-router';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { PlayfairDisplay_700Bold, PlayfairDisplay_800ExtraBold } from '@expo-google-fonts/playfair-display';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ConvexReactClient } from 'convex/react';
-import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react';
+import { ConvexBetterAuthProvider, type AuthClient } from '@convex-dev/better-auth/react';
 import { authClient } from '@/lib/auth-client';
 import { ThemeProvider, useTheme } from '@/src/theme/ThemeProvider';
 import { UserProvider } from '@/src/state/userStore';
@@ -64,13 +64,8 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <SafeAreaProvider
-      initialMetrics={{
-        insets: { top: 47, bottom: 34, left: 0, right: 0 },
-        frame: { x: 0, y: 0, width: 393, height: 852 },
-      }}
-    >
-      <ConvexBetterAuthProvider client={convex} authClient={authClient}>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ConvexBetterAuthProvider client={convex} authClient={authClient as unknown as AuthClient}>
         <ThemeProvider>
           <UserProvider>
             <RootStack />

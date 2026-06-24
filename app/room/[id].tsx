@@ -40,7 +40,7 @@ export default function RoomScreen() {
   const sendChat = useMutation(api.multiplayer.sendChat);
   const setReady = useMutation(api.multiplayer.setReady);
   const tickTurn = useMutation(api.multiplayer.tickTurn);
-  const finishGame = useMutation(api.multiplayer.finishGame);
+  const declareMahjong = useMutation(api.gameEngine.declareMahjong);
   const ackMatched = useMutation(api.multiplayer.ackMatched);
   const sendReaction = useMutation(api.social.sendReaction);
   const spectators = useQuery(api.social.listSpectators, id ? { roomId } : 'skip');
@@ -202,7 +202,7 @@ export default function RoomScreen() {
     if (mySeatIdx === -1) return;
     setBusy('finish');
     try {
-      await finishGame({ roomId, winnerSeat: mySeatIdx, points: 35 });
+      await declareMahjong({ roomId });
     } catch (e: any) {
       Alert.alert('Mahjong', e?.message ?? 'Failed');
     }

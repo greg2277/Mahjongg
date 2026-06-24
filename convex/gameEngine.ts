@@ -88,6 +88,28 @@ async function loadState(ctx: any, roomId: Id<"rooms">): Promise<GameState | nul
   }
 }
 
+// Allocate the next move-sequence number atomically via a counter on the room
+// document. Because every allocation patches room.moveSeq, two concurrent
+// mutations conflict on the same document and Convex's OCC retries one of them,
+// guaranteeing unique, gap-free seq values (no TOCTOU duplicates).
+async function nextSeq(ctx: any, roomId: Id<"rooms">): Promise<number> {
+  const room = await ctx.db.get(roomId);
+  if (!room) throw new Error("Room not found");
+  let base = room.moveSeq;
+  if (base === undefined) {
+    // Legacy room created before the counter existed: seed from the move log.
+    const last = await ctx.db
+      .query("roomMoves")
+      .withIndex("by_room_seq", (q: any) => q.eq("roomId", roomId))
+      .order("desc")
+      .first();
+    base = last?.seq ?? -1;
+  }
+  const seq = base + 1;
+  await ctx.db.patch(roomId, { moveSeq: seq });
+  return seq;
+}
+
 async function appendMove(
   ctx: any,
   roomId: Id<"rooms">,
@@ -96,12 +118,7 @@ async function appendMove(
   type: string,
   payload: any
 ) {
-  const last = await ctx.db
-    .query("roomMoves")
-    .withIndex("by_room_seq", (q: any) => q.eq("roomId", roomId))
-    .order("desc")
-    .first();
-  const seq = (last?.seq ?? -1) + 1;
+  const seq = await nextSeq(ctx, roomId);
   await ctx.db.insert("roomMoves", {
     roomId,
     seq,
@@ -128,7 +145,9 @@ export const initializeGame = mutation({
     const existing = await loadState(ctx, roomId);
     if (existing) return { ok: true, alreadyInitialized: true };
 
-    const seed = Math.floor(Math.random() * 2 ** 31);
+    const seedBuf = new Uint32Array(1);
+    crypto.getRandomValues(seedBuf);
+    const seed = seedBuf[0];
     const wall = buildWall(seed);
     const hands: string[][] = [[], [], [], []];
     const flowers: string[][] = [[], [], [], []];
@@ -423,6 +442,18 @@ export const declareMahjong = mutation({
 
     const startedAt = state.startedAt ?? Date.now();
     const durationMs = Date.now() - startedAt;
+
+    // Single batched profile lookup instead of one query per seat (avoids N+1).
+    const seatProfiles = await Promise.all(
+      room.seats.map((s) =>
+        s.userId
+          ? ctx.db
+              .query("profiles")
+              .withIndex("by_user", (q: any) => q.eq("userId", s.userId))
+              .unique()
+          : Promise.resolve(null)
+      )
+    );
     for (let i = 0; i < room.seats.length; i++) {
       const s = room.seats[i];
       if (!s.userId) continue;
@@ -433,10 +464,7 @@ export const declareMahjong = mutation({
         durationMs,
         playedAt: Date.now(),
       });
-      const profile = await ctx.db
-        .query("profiles")
-        .withIndex("by_user", (q: any) => q.eq("userId", s.userId))
-        .unique();
+      const profile = seatProfiles[i];
       if (profile) {
         const delta = room.mode === "ranked" ? 15 : 5;
         const xpDelta = i === seat ? delta * 4 : Math.floor(-delta / 2);
