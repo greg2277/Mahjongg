@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="130" viewBox="0 0 100 130">
+  <!-- Red Dragon (中) — generated CC0, matches flat-vector / rounded-body / gray-border style -->
+  <rect x="3" y="3" width="94" height="124" rx="14" ry="14" fill="#FFFFFF" stroke="#9CA3AF" stroke-width="3"/>
+  <g fill="#C0152F">
+    <!-- 中 character -->
+    <rect x="34" y="30" width="32" height="70" rx="3"/>
+    <rect x="46" y="18" width="8" height="94" rx="3"/>
+    <rect x="28" y="44" width="44" height="9" rx="2" fill="#FFFFFF"/>
+    <rect x="28" y="77" width="44" height="9" rx="2" fill="#FFFFFF"/>
+  </g>
+</svg>
