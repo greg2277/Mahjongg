@@ -9,6 +9,18 @@
 import { mutation, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { authComponent } from "./auth";
+
+// Automation management is an admin/dashboard capability. Every mutation that
+// creates, edits, runs, or mass-toggles automations must be admin-gated so an
+// ordinary or unauthenticated client cannot drive the execution engine.
+async function requireAdmin(ctx: any) {
+  const user = await authComponent.getAuthUser(ctx).catch(() => null);
+  if (!user || (user as { role?: string }).role !== "admin") {
+    throw new Error("Unauthorized");
+  }
+  return user;
+}
 
 // Parse one cron field into a sorted list of valid values.
 // Supports: "*", ranges like "1-5", steps like "*/5", lists like "8,17".
@@ -313,7 +325,7 @@ function parseSimpleFilter(
     return s;
   };
 
-  const parts = filter.split(/s+ands+/i);
+  const parts = filter.split(/\s+and\s+/i);
   const conditions: Array<{ field: string; op: string; value: unknown }> = [];
 
   for (const part of parts) {
@@ -321,7 +333,7 @@ function parseSimpleFilter(
     if (!p) continue;
 
     // field contains value
-    const cm = p.match(/^([w.]+)s+containss+(.+)$/i);
+    const cm = p.match(/^([\w.]+)\s+contains\s+(.+)$/i);
     if (cm) {
       conditions.push({ field: cm[1], op: "contains", value: stripQ(cm[2].trim()) });
       continue;
@@ -331,7 +343,7 @@ function parseSimpleFilter(
     // None of the operator strings contain regex special chars, so use sym directly.
     let matched = false;
     for (const [sym, opCode] of symbolOps) {
-      const m = p.match(new RegExp("^([\w.]+)\s*" + sym + "\s*(.+)$"));
+      const m = p.match(new RegExp("^([\\w.]+)\\s*" + sym + "\\s*(.+)$"));
       if (m) {
         conditions.push({ field: m[1], op: opCode, value: coerce(stripQ(m[2].trim())) });
         matched = true;
@@ -353,9 +365,10 @@ function parseSimpleFilter(
  *     Field supports dot-notation for nested access: user.role
  *   JSON array (legacy): [{"field":"status","op":"eq","value":"active"}]
  *
- * Safe defaults:
- *   - Unparseable filter  -> treated as no filter (returns true, do not block)
- *   - Empty conditions    -> returns true
+ * Safe defaults (fail CLOSED — a filter that cannot be understood must not
+ * cause the automation to fire on every document):
+ *   - Unparseable filter  -> returns false (do not fire)
+ *   - Empty conditions    -> returns true (an explicitly empty filter matches all)
  *   - Unknown operator    -> condition passes
  */
 function matchesFilter(doc: Record<string, unknown>, filter: string): boolean {
@@ -366,12 +379,13 @@ function matchesFilter(doc: Record<string, unknown>, filter: string): boolean {
     try {
       conditions = JSON.parse(filter);
     } catch {
-      return true;
+      return false;
     }
-    if (!Array.isArray(conditions) || conditions.length === 0) return true;
+    if (!Array.isArray(conditions)) return false;
+    if (conditions.length === 0) return true;
   } else {
     const parsed = parseSimpleFilter(filter);
-    if (!parsed) return true;
+    if (!parsed) return false;
     conditions = parsed;
   }
 
@@ -488,6 +502,7 @@ export const create = mutation({
     type: v.optional(v.union(v.literal("email"), v.literal("general"))),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const now = Date.now();
     const id = await ctx.db.insert("automations", {
       ...args,
@@ -526,6 +541,7 @@ export const update = mutation({
     type: v.optional(v.union(v.literal("email"), v.literal("general"))),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const { id, ...updates } = args;
     const existing = await ctx.db.get(id);
     if (!existing) throw new Error("Automation not found");
@@ -564,6 +580,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("automations") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Automation not found");
     if (existing.nextScheduledRunId) {
@@ -578,6 +595,7 @@ export const remove = mutation({
 export const toggle = mutation({
   args: { id: v.id("automations"), enabled: v.boolean() },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Automation not found");
 
@@ -612,6 +630,7 @@ export const toggle = mutation({
 export const archive = mutation({
   args: { id: v.id("automations") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Automation not found");
     if (existing.nextScheduledRunId) {
@@ -631,6 +650,7 @@ export const archive = mutation({
 export const restore = mutation({
   args: { id: v.id("automations") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Automation not found");
     const now = Date.now();
@@ -658,6 +678,7 @@ export const restore = mutation({
 export const runNow = mutation({
   args: { id: v.id("automations") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Automation not found");
     await ctx.scheduler.runAfter(0, internal.automations.execute, {
@@ -690,6 +711,7 @@ export const listRuns = query({
 export const disableAll = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const all = await ctx.db.query("automations").collect();
     for (const automation of all) {
       if (automation.archived) continue;
@@ -714,6 +736,7 @@ export const disableAll = mutation({
 export const enableAll = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const now = Date.now();
     const all = await ctx.db.query("automations").collect();
     for (const automation of all) {

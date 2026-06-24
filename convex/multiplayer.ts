@@ -9,13 +9,23 @@ async function getAuthUser(ctx: any) {
   return u as any;
 }
 
+// Ranked/leaderboard-affecting actions require a verified email to prevent
+// sock-puppet account farming with addresses the user does not own.
+async function getVerifiedUser(ctx: any) {
+  const u = await getAuthUser(ctx);
+  if (!u.emailVerified) throw new Error("Email verification required");
+  return u;
+}
+
 const WINDS = ["E", "S", "W", "N"] as const;
 const TURN_MS = 30_000;
 
 function makeCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const buf = new Uint32Array(6);
+  crypto.getRandomValues(buf);
   let s = "";
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 6; i++) s += chars[buf[i] % chars.length];
   return s;
 }
 
@@ -24,6 +34,25 @@ async function profileFor(ctx: any, userId: string) {
     .query("profiles")
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
     .unique();
+}
+
+// Allocate the next move-sequence number atomically via a counter on the room
+// document, avoiding duplicate seq values under concurrent submissions (TOCTOU).
+async function nextSeq(ctx: any, roomId: Id<"rooms">, room?: any): Promise<number> {
+  const r = room ?? (await ctx.db.get(roomId));
+  if (!r) throw new Error("Room not found");
+  let base = r.moveSeq;
+  if (base === undefined) {
+    const last = await ctx.db
+      .query("roomMoves")
+      .withIndex("by_room_seq", (q: any) => q.eq("roomId", roomId))
+      .order("desc")
+      .first();
+    base = last?.seq ?? -1;
+  }
+  const seq = base + 1;
+  await ctx.db.patch(roomId, { moveSeq: seq });
+  return seq;
 }
 
 // ── QUERIES ─────────────────────────────────────────────────────────────
@@ -111,7 +140,7 @@ export const createRoom = mutation({
     fillWithAI: v.optional(v.boolean()),
   },
   handler: async (ctx, { mode, fillWithAI }) => {
-    const user = await getAuthUser(ctx);
+    const user = await getVerifiedUser(ctx);
     const userId = user._id as string;
     const profile = await profileFor(ctx, userId);
     const name = profile?.displayName ?? user.name ?? "Player";
@@ -177,7 +206,7 @@ export const createRoom = mutation({
 export const joinRoom = mutation({
   args: { code: v.string() },
   handler: async (ctx, { code }) => {
-    const user = await getAuthUser(ctx);
+    const user = await getVerifiedUser(ctx);
     const userId = user._id as string;
     const room = await ctx.db
       .query("rooms")
@@ -316,7 +345,16 @@ export const startGame = mutation({
 export const submitMove = mutation({
   args: {
     roomId: v.id("rooms"),
-    type: v.string(),
+    // Allowlist of in-turn game moves. Wins go exclusively through the validated
+    // gameEngine.declareMahjong path and chat through sendChat, so "mahjong",
+    // "state", and "chat" are intentionally NOT accepted here.
+    type: v.union(
+      v.literal("draw"),
+      v.literal("discard"),
+      v.literal("pung"),
+      v.literal("kong"),
+      v.literal("pass"),
+    ),
     payload: v.string(),
   },
   handler: async (ctx, { roomId, type, payload }) => {
@@ -328,18 +366,22 @@ export const submitMove = mutation({
     const seat = room.seats.findIndex((s) => s.userId === userId);
     if (seat === -1) throw new Error("Not seated");
 
-    // Chat moves don't require turn
-    const isChat = type === "chat";
-    if (!isChat && room.turnSeat !== seat) {
+    // Reject oversized or malformed payloads (must be a small JSON object).
+    if (payload.length > 1000) throw new Error("Payload too large");
+    try {
+      const parsed = JSON.parse(payload);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        throw new Error("Payload must be a JSON object");
+      }
+    } catch {
+      throw new Error("Payload must be valid JSON");
+    }
+
+    if (room.turnSeat !== seat) {
       throw new Error("Not your turn");
     }
 
-    const last = await ctx.db
-      .query("roomMoves")
-      .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))
-      .order("desc")
-      .first();
-    const seq = (last?.seq ?? -1) + 1;
+    const seq = await nextSeq(ctx, roomId, room);
 
     await ctx.db.insert("roomMoves", {
       roomId,
@@ -351,16 +393,12 @@ export const submitMove = mutation({
       at: Date.now(),
     });
 
-    if (!isChat) {
-      const nextSeat = (seat + 1) % 4;
-      await ctx.db.patch(roomId, {
-        turnSeat: nextSeat,
-        turnDeadline: Date.now() + TURN_MS,
-        lastActionAt: Date.now(),
-      });
-    } else {
-      await ctx.db.patch(roomId, { lastActionAt: Date.now() });
-    }
+    const nextSeat = (seat + 1) % 4;
+    await ctx.db.patch(roomId, {
+      turnSeat: nextSeat,
+      turnDeadline: Date.now() + TURN_MS,
+      lastActionAt: Date.now(),
+    });
     return { seq };
   },
 });
@@ -377,12 +415,7 @@ export const sendChat = mutation({
     const seat = room.seats.findIndex((s) => s.userId === userId);
     if (seat === -1) throw new Error("Not seated");
 
-    const last = await ctx.db
-      .query("roomMoves")
-      .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))
-      .order("desc")
-      .first();
-    const seq = (last?.seq ?? -1) + 1;
+    const seq = await nextSeq(ctx, roomId, room);
 
     await ctx.db.insert("roomMoves", {
       roomId,
@@ -407,12 +440,7 @@ export const tickTurn = mutation({
     if (!room.turnDeadline || room.turnDeadline > Date.now()) return { ok: false };
     const seat = room.turnSeat ?? 0;
 
-    const last = await ctx.db
-      .query("roomMoves")
-      .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))
-      .order("desc")
-      .first();
-    const seq = (last?.seq ?? -1) + 1;
+    const seq = await nextSeq(ctx, roomId, room);
     await ctx.db.insert("roomMoves", {
       roomId,
       seq,
@@ -431,72 +459,33 @@ export const tickTurn = mutation({
   },
 });
 
-// Finish game — winner seat updates ELO + game results
-export const finishGame = mutation({
-  args: {
-    roomId: v.id("rooms"),
-    winnerSeat: v.number(),
-    points: v.optional(v.number()),
-    handPatternId: v.optional(v.string()),
-  },
-  handler: async (ctx, { roomId, winnerSeat, points, handPatternId }) => {
+// Forfeit the game — used when a player concedes or disconnects. This ends the
+// game WITHOUT crowning a winner or awarding ELO to anyone. Win declarations go
+// exclusively through the validated gameEngine.declareMahjong path.
+export const forfeitGame = mutation({
+  args: { roomId: v.id("rooms") },
+  handler: async (ctx, { roomId }) => {
     const user = await getAuthUser(ctx);
     const userId = user._id as string;
     const room = await ctx.db.get(roomId);
     if (!room) throw new Error("Room not found");
     if (room.status !== "in_progress") throw new Error("Game not active");
-    if (!room.seats.some((s) => s.userId === userId)) throw new Error("Not seated");
-
-    const startMove = await ctx.db
-      .query("roomMoves")
-      .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))
-      .first();
-    const durationMs = startMove ? Date.now() - startMove.at : 0;
-    const pts = points ?? 25;
-
-    // Record per-player game results
-    for (let i = 0; i < room.seats.length; i++) {
-      const s = room.seats[i];
-      if (!s.userId) continue;
-      await ctx.db.insert("gameResults", {
-        userId: s.userId,
-        won: i === winnerSeat,
-        handPatternId,
-        points: i === winnerSeat ? pts : 0,
-        durationMs,
-        playedAt: Date.now(),
-      });
-      // ELO adjust ±15 for ranked, ±5 casual
-      const delta = room.mode === "ranked" ? 15 : 5;
-      const profile = await profileFor(ctx, s.userId);
-      if (profile) {
-        const xpDelta = i === winnerSeat ? delta * 4 : Math.floor(-delta / 2);
-        await ctx.db.patch(profile._id, {
-          xp: Math.max(0, profile.xp + xpDelta),
-          gamesPlayed: profile.gamesPlayed + 1,
-          gamesWon: profile.gamesWon + (i === winnerSeat ? 1 : 0),
-          updatedAt: Date.now(),
-        });
-      }
-    }
+    const seat = room.seats.findIndex((s) => s.userId === userId);
+    if (seat === -1) throw new Error("Not seated");
 
     await ctx.db.patch(roomId, {
       status: "finished",
       lastActionAt: Date.now(),
       turnDeadline: undefined,
     });
-    const last = await ctx.db
-      .query("roomMoves")
-      .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))
-      .order("desc")
-      .first();
+    const seq = await nextSeq(ctx, roomId, room);
     await ctx.db.insert("roomMoves", {
       roomId,
-      seq: (last?.seq ?? -1) + 1,
-      seat: winnerSeat,
-      userId: room.seats[winnerSeat]?.userId,
-      type: "mahjong",
-      payload: JSON.stringify({ winnerSeat, points: pts, handPatternId }),
+      seq,
+      seat,
+      userId,
+      type: "forfeit",
+      payload: JSON.stringify({ seat }),
       at: Date.now(),
     });
     return { ok: true };

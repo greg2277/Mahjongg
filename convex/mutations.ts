@@ -8,6 +8,14 @@ async function getAuthUser(ctx: any) {
   return userMetadata as any;
 }
 
+// Leaderboard-affecting writes require a verified email to prevent
+// sock-puppet account farming with addresses the user does not own.
+async function getVerifiedUser(ctx: any) {
+  const u = await getAuthUser(ctx);
+  if (!u.emailVerified) throw new Error("Email verification required");
+  return u;
+}
+
 const XP_PER_LEVEL = 500;
 
 function levelFromXp(xp: number): number {
@@ -91,7 +99,7 @@ export const recordGameResult = mutation({
     handPatternId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getAuthUser(ctx);
+    const user = await getVerifiedUser(ctx);
     const userId = user._id as unknown as string;
     let profile = await ensureProfile(ctx, userId, user.name ?? user.email ?? "Player");
     profile = await bumpStreak(ctx, profile);

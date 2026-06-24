@@ -17,7 +17,7 @@ import {
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
@@ -54,6 +54,16 @@ export const authComponent = createClient<DataModel, typeof authSchema>(
     },
   }
 );
+
+// Guard for admin-only endpoints: requires an authenticated caller with the
+// admin role. Throws otherwise so the function cannot run for ordinary clients.
+async function requireAdmin(ctx: GenericCtx<DataModel>) {
+  const caller = await authComponent.getAuthUser(ctx);
+  if (!caller || (caller as { role?: string }).role !== "admin") {
+    throw new ConvexError("Unauthorized");
+  }
+  return caller;
+}
 
 // Static trusted origins for CORS
 const staticOrigins = [
@@ -263,7 +273,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
     baseURL: getConfiguredBaseUrl(),
     emailAndPassword: {
       enabled: AUTH_CONFIG.authEnabled && AUTH_CONFIG.emailPasswordEnabled,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
       disableSignUp: !AUTH_CONFIG.signupEnabled,
     },
     advanced: {
@@ -475,6 +485,7 @@ export const getUserByEmail = query({
 export const listAllUsers = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 100 }) => {
+    await requireAdmin(ctx);
     // Use the component's findMany to query users
     const result = await ctx.runQuery(components.betterAuth.adapter.findMany, {
       model: "user",
@@ -512,6 +523,7 @@ export const listAllUsers = query({
 export const deleteUser = mutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
+    await requireAdmin(ctx);
     // Delete all sessions for this user
     const sessions = await ctx.runQuery(components.betterAuth.adapter.findMany, {
       model: "session",
@@ -793,6 +805,7 @@ export const banUser = mutation({
     banExpires: v.optional(v.number()),
   },
   handler: async (ctx, { userId, banned, banReason, banExpires }) => {
+    await requireAdmin(ctx);
     await ctx.runMutation(components.betterAuth.adapter.updateOne, {
       input: {
         model: "user",
@@ -819,6 +832,7 @@ export const updateUserRole = mutation({
     role: v.string(),
   },
   handler: async (ctx, { userId, role }) => {
+    await requireAdmin(ctx);
     await ctx.runMutation(components.betterAuth.adapter.updateOne, {
       input: {
         model: "user",
@@ -841,6 +855,7 @@ export const listUsers = query({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, { limit = 50, cursor }) => {
+    await requireAdmin(ctx);
     const result = await ctx.runQuery(components.betterAuth.adapter.findMany, {
       model: "user",
       sortBy: { field: "createdAt", direction: "desc" },

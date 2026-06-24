@@ -14,23 +14,34 @@ import { authComponent } from "./auth";
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── RATE LIMITER (per-user, sliding window) ─────────────────────────────
-// Backed by an in-memory Map cleared on Convex deploy. For long-lived
-// abuse protection use a persisted table; for spam control this is enough.
+// Database-backed so the limit survives cold starts and is shared across
+// concurrent isolates. State lives in the `rateLimits` table; the atomic
+// read-modify-write below relies on Convex OCC to serialize per-key updates.
 const RL_WINDOW_MS = 10_000;
 const RL_MAX_PER_WINDOW = 30;
-const rlMap: Map<string, number[]> = (globalThis as any).__jp_rl ?? new Map();
-(globalThis as any).__jp_rl = rlMap;
 
-function checkRate(userId: string): { ok: boolean; remaining: number } {
+async function checkRate(
+  ctx: any,
+  userId: string,
+): Promise<{ ok: boolean; remaining: number }> {
   const now = Date.now();
-  const list = (rlMap.get(userId) ?? []).filter((t) => now - t < RL_WINDOW_MS);
-  if (list.length >= RL_MAX_PER_WINDOW) {
-    rlMap.set(userId, list);
+  const existing = await ctx.db
+    .query("rateLimits")
+    .withIndex("by_key", (q: any) => q.eq("key", userId))
+    .unique();
+  const recent = (existing?.hits ?? []).filter(
+    (t: number) => now - t < RL_WINDOW_MS,
+  );
+
+  if (recent.length >= RL_MAX_PER_WINDOW) {
+    if (existing) await ctx.db.patch(existing._id, { hits: recent });
     return { ok: false, remaining: 0 };
   }
-  list.push(now);
-  rlMap.set(userId, list);
-  return { ok: true, remaining: RL_MAX_PER_WINDOW - list.length };
+
+  recent.push(now);
+  if (existing) await ctx.db.patch(existing._id, { hits: recent });
+  else await ctx.db.insert("rateLimits", { key: userId, hits: recent });
+  return { ok: true, remaining: RL_MAX_PER_WINDOW - recent.length };
 }
 
 // ── HEARTBEAT / TURN WATCHDOG ───────────────────────────────────────────
@@ -88,12 +99,15 @@ export const sweepStalledTurns = internalMutation({
   },
 });
 
-// Manual trigger (useful for debugging / dashboards)
+// Manual trigger (useful for debugging / dashboards). Admin-only: an ordinary
+// authenticated user must not be able to drive the global room watchdog.
 export const runWatchdogNow = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) throw new Error("Unauthenticated");
+    if (!user || (user as { role?: string }).role !== "admin") {
+      throw new Error("Unauthorized");
+    }
     await ctx.scheduler.runAfter(0, internal.edgeSecurity.sweepStalledTurns, {});
     return { ok: true };
   },
@@ -234,7 +248,7 @@ export const submitIntent = mutation({
     if (!user) throw new Error("Unauthenticated");
     const userId = (user as any)._id as string;
 
-    const rate = checkRate(userId);
+    const rate = await checkRate(ctx, userId);
     if (!rate.ok) throw new Error("Rate limit exceeded — slow down");
 
     const room = await ctx.db.get(roomId);

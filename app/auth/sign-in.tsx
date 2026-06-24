@@ -25,8 +25,6 @@ export default function SignInScreen() {
     setLoading(false);
     if (res.success) {
       router.replace('/(tabs)');
-    } else if (res.error === 'verify-required') {
-      router.replace('/auth/verify');
     } else {
       setError(res.error);
     }

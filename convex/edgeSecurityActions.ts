@@ -2,6 +2,7 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
+import { validateWinningHand } from "./nmjlValidation";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Internal proxies that re-invoke the canonical engine handlers using
@@ -25,6 +26,25 @@ async function loadState(ctx: any, roomId: Id<"rooms">) {
   }
 }
 
+// Allocate the next move-sequence number atomically via a counter on the room
+// document, avoiding duplicate seq values under concurrent submissions (TOCTOU).
+async function nextSeq(ctx: any, roomId: Id<"rooms">): Promise<number> {
+  const room = await ctx.db.get(roomId);
+  if (!room) throw new Error("Room not found");
+  let base = room.moveSeq;
+  if (base === undefined) {
+    const last = await ctx.db
+      .query("roomMoves")
+      .withIndex("by_room_seq", (q: any) => q.eq("roomId", roomId))
+      .order("desc")
+      .first();
+    base = last?.seq ?? -1;
+  }
+  const seq = base + 1;
+  await ctx.db.patch(roomId, { moveSeq: seq });
+  return seq;
+}
+
 async function appendMove(
   ctx: any,
   roomId: Id<"rooms">,
@@ -33,12 +53,7 @@ async function appendMove(
   type: string,
   payload: any
 ) {
-  const last = await ctx.db
-    .query("roomMoves")
-    .withIndex("by_room_seq", (q: any) => q.eq("roomId", roomId))
-    .order("desc")
-    .first();
-  const seq = (last?.seq ?? -1) + 1;
+  const seq = await nextSeq(ctx, roomId);
   await ctx.db.insert("roomMoves", {
     roomId,
     seq,
@@ -175,10 +190,23 @@ export const proxyMahjong = internalMutation({
     if (totalTiles !== 14) {
       throw new Error(`Invalid hand size for mahjong: ${totalTiles}/14`);
     }
+
+    // AUTHORITATIVE NMJL VALIDATION — mirrors gameEngine.declareMahjong so this
+    // proxy path cannot accept an illegal win. The client never decides outcome.
+    const result = validateWinningHand(state.hands[seat], state.exposed[seat], 2025);
+    if (!result.valid) {
+      throw new Error(result.reason ?? "Hand is not a legal NMJL win");
+    }
+    const awardedPoints = result.points ?? 25;
+
     state.finished = true;
     state.winnerSeat = seat;
     await appendMove(ctx, roomId, seat, userId, "state", state);
-    await appendMove(ctx, roomId, seat, userId, "mahjong", { points: 25 });
+    await appendMove(ctx, roomId, seat, userId, "mahjong", {
+      points: awardedPoints,
+      patternId: result.patternId,
+      patternDescription: result.description,
+    });
     await ctx.db.patch(roomId, {
       status: "finished",
       lastActionAt: Date.now(),
@@ -186,20 +214,29 @@ export const proxyMahjong = internalMutation({
     });
     const startedAt = state.startedAt ?? Date.now();
     const durationMs = Date.now() - startedAt;
+
+    // Single batched profile lookup instead of one query per seat (avoids N+1).
+    const seatProfiles = await Promise.all(
+      room.seats.map((s: any) =>
+        s.userId
+          ? ctx.db
+              .query("profiles")
+              .withIndex("by_user", (q: any) => q.eq("userId", s.userId))
+              .unique()
+          : Promise.resolve(null)
+      )
+    );
     for (let i = 0; i < room.seats.length; i++) {
       const s = room.seats[i];
       if (!s.userId) continue;
       await ctx.db.insert("gameResults", {
         userId: s.userId,
         won: i === seat,
-        points: i === seat ? 25 : 0,
+        points: i === seat ? awardedPoints : 0,
         durationMs,
         playedAt: Date.now(),
       });
-      const profile = await ctx.db
-        .query("profiles")
-        .withIndex("by_user", (q: any) => q.eq("userId", s.userId))
-        .unique();
+      const profile = seatProfiles[i];
       if (profile) {
         const delta = room.mode === "ranked" ? 15 : 5;
         const xpDelta = i === seat ? delta * 4 : Math.floor(-delta / 2);

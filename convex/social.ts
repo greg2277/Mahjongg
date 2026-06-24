@@ -104,8 +104,15 @@ export const listSpectators = query({
 export const getReplay = query({
   args: { roomId: v.id("rooms") },
   handler: async (ctx, { roomId }) => {
+    const user = await authComponent.getAuthUser(ctx).catch(() => null);
+    if (!user) throw new Error("Unauthenticated");
+    const userId = (user as any)._id as string;
     const room = await ctx.db.get(roomId);
     if (!room) return null;
+    // Replays are personal game history — only seats that played may view them.
+    if (!room.seats.some((s) => s.userId === userId)) {
+      throw new Error("Not a participant in this game");
+    }
     const moves = await ctx.db
       .query("roomMoves")
       .withIndex("by_room_seq", (q) => q.eq("roomId", roomId))

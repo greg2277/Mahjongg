@@ -1,8 +1,16 @@
-// Lightweight global user/progress store using React state + AsyncStorage persistence.
-// Includes mock email-verification auth flow (Supabase-shaped API for easy swap-in later).
+// Lightweight global progress store using React state + AsyncStorage persistence.
+// Authentication is owned entirely by Better-Auth (see lib/auth-client + convex/auth.ts);
+// this store only mirrors the signed-in identity and keeps local gameplay progress.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  useSession,
+  signInWithEmail as authSignInWithEmail,
+  signUpWithEmail as authSignUpWithEmail,
+  signInWithGoogle as authSignInWithGoogle,
+  signOutUser,
+} from '@/lib/auth-client';
 
 export type UserStats = {
   xp: number;
@@ -47,16 +55,6 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 const STORAGE_KEY = '@jade-pavilion/profile';
-const SESSION_KEY = '@jade-pavilion/session';
-const PENDING_KEY = '@jade-pavilion/pending-verification';
-
-export type PendingVerification = {
-  email: string;
-  displayName: string;
-  token: string; // 6-digit mock code
-  sentAt: number;
-  expiresAt: number;
-};
 
 export type AuthResult = { success: true } | { success: false; error: string };
 
@@ -64,12 +62,9 @@ type Ctx = {
   profile: UserProfile;
   signedIn: boolean;
   loading: boolean;
-  pendingVerification: PendingVerification | null;
   signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
-  verifyEmailCode: (code: string) => Promise<AuthResult>;
-  resendVerification: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
   updateProfile: (patch: Partial<UserProfile>) => void;
   addXP: (amount: number) => void;
@@ -83,12 +78,9 @@ const UserContext = createContext<Ctx>({
   profile: DEFAULT_PROFILE,
   signedIn: false,
   loading: true,
-  pendingVerification: null,
   signInWithEmail: noop,
   signUpWithEmail: noop,
   signInWithGoogle: noop,
-  verifyEmailCode: noop,
-  resendVerification: noop,
   signOut: async () => undefined,
   updateProfile: () => undefined,
   addXP: () => undefined,
@@ -96,27 +88,19 @@ const UserContext = createContext<Ctx>({
   recordResult: () => undefined,
 });
 
-const generateCode = () =>
-  Math.floor(100000 + Math.random() * 900000).toString();
-
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = useSession();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [signedIn, setSignedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [pendingVerification, setPendingVerification] = useState<PendingVerification | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate
+  const signedIn = !!session;
+  const loading = isPending || !hydrated;
+
+  // Hydrate local progress
   useEffect(() => {
     (async () => {
       try {
-        const [rawProfile, rawSession, rawPending] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY),
-          AsyncStorage.getItem(SESSION_KEY),
-          AsyncStorage.getItem(PENDING_KEY),
-        ]);
+        const rawProfile = await AsyncStorage.getItem(STORAGE_KEY);
         if (rawProfile) {
           try {
             const parsed = JSON.parse(rawProfile) as UserProfile;
@@ -129,18 +113,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             // ignore corrupt profile
           }
         }
-        if (rawSession === 'true') setSignedIn(true);
-        if (rawPending) {
-          try {
-            const p = JSON.parse(rawPending) as PendingVerification;
-            if (p.expiresAt > Date.now()) setPendingVerification(p);
-            else AsyncStorage.removeItem(PENDING_KEY).catch(() => undefined);
-          } catch {
-            // ignore corrupt pending
-          }
-        }
       } finally {
-        setLoading(false);
+        setHydrated(true);
       }
     })();
   }, []);
@@ -149,15 +123,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
 
-  const persistSession = useCallback((on: boolean) => {
-    if (on) AsyncStorage.setItem(SESSION_KEY, 'true').catch(() => undefined);
-    else AsyncStorage.removeItem(SESSION_KEY).catch(() => undefined);
-  }, []);
-
-  const persistPending = useCallback((p: PendingVerification | null) => {
-    if (p) AsyncStorage.setItem(PENDING_KEY, JSON.stringify(p)).catch(() => undefined);
-    else AsyncStorage.removeItem(PENDING_KEY).catch(() => undefined);
-  }, []);
+  // Mirror the authoritative Better-Auth identity into the local profile.
+  useEffect(() => {
+    const user = session?.user as
+      | { email?: string; name?: string; emailVerified?: boolean }
+      | undefined;
+    if (!user) return;
+    setProfile((p) => {
+      const next: UserProfile = {
+        ...p,
+        email: user.email ?? p.email,
+        displayName: user.name && user.name.length > 0 ? user.name : p.displayName,
+        emailVerified: !!user.emailVerified,
+      };
+      persistProfile(next);
+      return next;
+    });
+  }, [session, persistProfile]);
 
   const updateProfile = useCallback(
     (patch: Partial<UserProfile>) => {
@@ -205,136 +187,41 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     [persistProfile],
   );
 
-  // ─────────── AUTH ───────────
+  // ─────────── AUTH (delegated to Better-Auth) ───────────
 
   const signUpWithEmail = useCallback<Ctx['signUpWithEmail']>(
     async (email, password, displayName) => {
-      const trimmed = email.trim().toLowerCase();
-      if (!isValidEmail(trimmed)) return { success: false, error: 'Please enter a valid email address.' };
-      if (password.length < 8) return { success: false, error: 'Password must be at least 8 characters.' };
-      if (displayName.trim().length < 2) return { success: false, error: 'Display name is required.' };
-
-      const code = generateCode();
-      const pending: PendingVerification = {
-        email: trimmed,
-        displayName: displayName.trim(),
-        token: code,
-        sentAt: Date.now(),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-      };
-      setPendingVerification(pending);
-      persistPending(pending);
-      return { success: true };
+      const res = await authSignUpWithEmail(email.trim(), password, displayName.trim());
+      if (res.success) return { success: true };
+      return { success: false, error: res.error?.message ?? 'Sign-up failed' };
     },
-    [persistPending],
+    [],
   );
 
-  const signInWithEmail = useCallback<Ctx['signInWithEmail']>(
-    async (email, password) => {
-      const trimmed = email.trim().toLowerCase();
-      if (!isValidEmail(trimmed)) return { success: false, error: 'Please enter a valid email address.' };
-      if (password.length < 8) return { success: false, error: 'Invalid email or password.' };
-
-      // Mock: require email verification on first sign-in
-      if (!profile.email || profile.email !== trimmed || !profile.emailVerified) {
-        const code = generateCode();
-        const pending: PendingVerification = {
-          email: trimmed,
-          displayName: profile.displayName !== 'Player' ? profile.displayName : trimmed.split('@')[0],
-          token: code,
-          sentAt: Date.now(),
-          expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-        };
-        setPendingVerification(pending);
-        persistPending(pending);
-        return { success: true };
-      }
-
-      // Verified user — establish session
-      setSignedIn(true);
-      persistSession(true);
-      return { success: true };
-    },
-    [profile.email, profile.emailVerified, profile.displayName, persistPending, persistSession],
-  );
+  const signInWithEmail = useCallback<Ctx['signInWithEmail']>(async (email, password) => {
+    const res = await authSignInWithEmail(email.trim(), password);
+    if (res.success) return { success: true };
+    return { success: false, error: res.error?.message ?? 'Sign-in failed' };
+  }, []);
 
   const signInWithGoogle = useCallback<Ctx['signInWithGoogle']>(async () => {
-    // Mock Google OAuth — instantly creates a verified session
-    setProfile((p) => {
-      const next: UserProfile = {
-        ...p,
-        displayName: p.displayName !== 'Player' ? p.displayName : 'Jade Player',
-        email: p.email || 'player@gmail.com',
-        emailVerified: true,
-      };
-      persistProfile(next);
-      return next;
-    });
-    setSignedIn(true);
-    persistSession(true);
-    setPendingVerification(null);
-    persistPending(null);
-    return { success: true };
-  }, [persistProfile, persistSession, persistPending]);
-
-  const verifyEmailCode = useCallback<Ctx['verifyEmailCode']>(
-    async (code) => {
-      if (!pendingVerification) return { success: false, error: 'No verification in progress.' };
-      if (pendingVerification.expiresAt < Date.now()) {
-        return { success: false, error: 'This code has expired. Please request a new one.' };
-      }
-      if (code.trim() !== pendingVerification.token) {
-        return { success: false, error: 'Incorrect code. Please try again.' };
-      }
-
-      const verifiedProfile: UserProfile = {
-        ...profile,
-        email: pendingVerification.email,
-        displayName: pendingVerification.displayName,
-        emailVerified: true,
-      };
-      setProfile(verifiedProfile);
-      persistProfile(verifiedProfile);
-      setSignedIn(true);
-      persistSession(true);
-      setPendingVerification(null);
-      persistPending(null);
-      return { success: true };
-    },
-    [pendingVerification, profile, persistProfile, persistSession, persistPending],
-  );
-
-  const resendVerification = useCallback<Ctx['resendVerification']>(async () => {
-    if (!pendingVerification) return { success: false, error: 'No verification in progress.' };
-    const refreshed: PendingVerification = {
-      ...pendingVerification,
-      token: generateCode(),
-      sentAt: Date.now(),
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-    };
-    setPendingVerification(refreshed);
-    persistPending(refreshed);
-    return { success: true };
-  }, [pendingVerification, persistPending]);
+    const res = await authSignInWithGoogle();
+    if (res.success) return { success: true };
+    return { success: false, error: res.error?.message ?? 'Google sign-in failed' };
+  }, []);
 
   const signOut = useCallback(async () => {
-    setSignedIn(false);
-    persistSession(false);
-    setPendingVerification(null);
-    persistPending(null);
-  }, [persistSession, persistPending]);
+    await signOutUser();
+  }, []);
 
   const value = useMemo<Ctx>(
     () => ({
       profile,
       signedIn,
       loading,
-      pendingVerification,
       signInWithEmail,
       signUpWithEmail,
       signInWithGoogle,
-      verifyEmailCode,
-      resendVerification,
       signOut,
       updateProfile,
       addXP,
@@ -345,12 +232,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       profile,
       signedIn,
       loading,
-      pendingVerification,
       signInWithEmail,
       signUpWithEmail,
       signInWithGoogle,
-      verifyEmailCode,
-      resendVerification,
       signOut,
       updateProfile,
       addXP,
