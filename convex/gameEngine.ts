@@ -2,7 +2,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
-import { validateWinningHand, validateExposure } from "./nmjlValidation";
+import { validateWinningHand, validateExposure, CURRENT_CARD_YEAR } from "./nmjlValidation";
 
 // ─────────────────────────────────────────────────────────────────────────
 // AUTHORITATIVE GAME ENGINE
@@ -414,7 +414,7 @@ export const declareMahjong = mutation({
     const result = validateWinningHand(
       state.hands[seat],
       state.exposed[seat],
-      2026
+      CURRENT_CARD_YEAR
     );
     if (!result.valid) {
       throw new Error(result.reason ?? "Hand is not a legal NMJL win");

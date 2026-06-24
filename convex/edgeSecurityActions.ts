@@ -2,7 +2,7 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
-import { validateWinningHand } from "./nmjlValidation";
+import { validateWinningHand, CURRENT_CARD_YEAR } from "./nmjlValidation";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Internal proxies that re-invoke the canonical engine handlers using
@@ -193,7 +193,7 @@ export const proxyMahjong = internalMutation({
 
     // AUTHORITATIVE NMJL VALIDATION — mirrors gameEngine.declareMahjong so this
     // proxy path cannot accept an illegal win. The client never decides outcome.
-    const result = validateWinningHand(state.hands[seat], state.exposed[seat], 2025);
+    const result = validateWinningHand(state.hands[seat], state.exposed[seat], CURRENT_CARD_YEAR);
     if (!result.valid) {
       throw new Error(result.reason ?? "Hand is not a legal NMJL win");
     }
