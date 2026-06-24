@@ -395,7 +395,7 @@ export const declareMahjong = mutation({
     const result = validateWinningHand(
       state.hands[seat],
       state.exposed[seat],
-      2025
+      2026
     );
     if (!result.valid) {
       throw new Error(result.reason ?? "Hand is not a legal NMJL win");

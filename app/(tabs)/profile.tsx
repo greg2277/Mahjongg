@@ -243,7 +243,7 @@ export default function ProfileScreen() {
           {[
             { icon: 'mail' as const, label: 'Email', value: profile.email || 'Not set' },
             { icon: 'shield-checkmark' as const, label: 'Verified', value: profile.emailVerified ? 'Yes' : 'Pending' },
-            { icon: 'card' as const, label: 'NMJL Card', value: 'Default 2025' },
+            { icon: 'card' as const, label: 'NMJL Card', value: 'Default 2026' },
             { icon: 'help-circle' as const, label: 'Help & Rules', value: '' },
           ].map((row, i) => (
             <View

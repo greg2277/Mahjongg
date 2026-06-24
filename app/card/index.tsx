@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { CardReference } from '@/src/components/CardReference';
 import { OfflineBanner } from '@/src/components/OfflineBanner';
+import { CURRENT_CARD_YEAR } from '@/src/games/nmjl/currentCard';
 
 export default function CardReferenceScreen() {
   const { theme } = useTheme();
@@ -45,7 +46,7 @@ export default function CardReferenceScreen() {
             NMJL Card
           </Text>
           <Text style={{ color: theme.textSubtle, fontSize: 13, marginTop: 1 }}>
-            2025 hand patterns · tap a category to filter
+            2026 hand patterns · tap a category to filter
           </Text>
         </View>
       </View>
@@ -54,7 +55,7 @@ export default function CardReferenceScreen() {
         <OfflineBanner />
       </View>
 
-      <CardReference year={2025} />
+      <CardReference year={CURRENT_CARD_YEAR} />
     </SafeAreaView>
   );
 }
