@@ -1,9 +1,11 @@
 import React from 'react';
-import { Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 
-// Decorative jade pavilion mark — uses RN primitives, no images.
+// Sparrow brand mark — the real white-sparrow-on-sage logo (assets/images/icon.png),
+// sized to fit the header badge with a soft gold frame.
+const SPARROW_MARK = require('../../assets/images/icon.png');
+
 export function LogoMark({ size = 44 }: { size?: number }) {
   const { theme } = useTheme();
   return (
@@ -22,23 +24,12 @@ export function LogoMark({ size = 44 }: { size?: number }) {
         elevation: 5,
       }}
     >
-      <LinearGradient
-        colors={theme.gradientHero}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Text
-          style={{
-            color: theme.gold,
-            fontSize: size * 0.42,
-            fontWeight: '900',
-            letterSpacing: -1,
-          }}
-        >
-          雀
-        </Text>
-      </LinearGradient>
+      <Image
+        source={SPARROW_MARK}
+        resizeMode="cover"
+        style={{ width: '100%', height: '100%' }}
+        accessibilityLabel="Sparrow logo"
+      />
     </View>
   );
 }
