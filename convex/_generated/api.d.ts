@@ -20,6 +20,7 @@ import type * as multiplayer from "../multiplayer.js";
 import type * as mutations from "../mutations.js";
 import type * as queries from "../queries.js";
 import type * as social from "../social.js";
+import type * as srs from "../srs.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   mutations: typeof mutations;
   queries: typeof queries;
   social: typeof social;
+  srs: typeof srs;
 }>;
 
 /**

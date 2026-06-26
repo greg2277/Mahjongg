@@ -38,6 +38,9 @@ function RootStack() {
         <Stack.Screen name="auth/sign-in" />
         <Stack.Screen name="auth/sign-up" />
         <Stack.Screen name="auth/verify" />
+        <Stack.Screen name="rating/index" options={{ presentation: 'card' }} />
+        <Stack.Screen name="rating/new-session" options={{ presentation: 'card' }} />
+        <Stack.Screen name="rating/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>

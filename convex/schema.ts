@@ -159,4 +159,67 @@ export default defineSchema({
   })
     .index("by_mode_elo", ["mode", "elo"])
     .index("by_user", ["userId"]),
+
+  // ── Sparrow Rating System (SRS) ─────────────────────────────────────────
+  // Current Glicko-2 rating per player.
+  ratings: defineTable({
+    userId: v.string(),
+    R: v.number(), // rating
+    RD: v.number(), // rating deviation
+    sigma: v.number(), // volatility
+    gamesPlayed: v.number(),
+    provisional: v.boolean(), // RD >= 150
+    tier: v.string(), // tier name for the current R
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_rating", ["R"]),
+
+  // Append-only rating history for sparkline / trend.
+  ratingHistory: defineTable({
+    userId: v.string(),
+    R: v.number(),
+    RD: v.number(),
+    tier: v.string(),
+    timestamp: v.number(),
+    sessionId: v.id("ratingSessions"),
+  }).index("by_user", ["userId"]),
+
+  // A rated session: up to 4 seats with entered final point totals + 2-of-4
+  // corroboration before the Glicko-2 update is applied.
+  ratingSessions: defineTable({
+    createdBy: v.string(),
+    seats: v.array(
+      v.object({
+        userId: v.optional(v.string()), // absent for guests
+        name: v.string(),
+        enteredTotal: v.number(), // final session points entered
+        confirmed: v.boolean(), // this seat confirmed the totals
+      })
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("corroborated"),
+      v.literal("rated"),
+      v.literal("disputed")
+    ),
+    createdAt: v.number(),
+    ratedAt: v.optional(v.number()),
+    // Per-seat rating outcome, filled in when the session is rated.
+    results: v.optional(
+      v.array(
+        v.object({
+          userId: v.optional(v.string()),
+          name: v.string(),
+          ngs: v.number(),
+          beforeR: v.number(),
+          afterR: v.number(),
+          delta: v.number(),
+          tier: v.string(),
+        })
+      )
+    ),
+  })
+    .index("by_creator", ["createdBy"])
+    .index("by_status", ["status"]),
 });

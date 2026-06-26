@@ -2,11 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { useUser } from '@/src/state/userStore';
+import { useSession } from '@/lib/auth-client';
 import { Card } from '@/src/components/Card';
+import { Badge } from '@/src/components/Badge';
 
 const FALLBACK_ROWS = [
   { rank: 1, displayName: 'Imperial Crane', xp: 18420, level: 12, currentStreak: 28, gamesWon: 64, country: '🇺🇸' },
@@ -33,6 +36,9 @@ type Row = {
 export default function LeaderboardScreen() {
   const { theme } = useTheme();
   const { profile } = useUser();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const myRating = useQuery(api.srs.getMyRating, session ? {} : 'skip');
   const [tab, setTab] = useState<'global' | 'friends'>('global');
 
   // Live global rankings from Convex (falls back gracefully when unavailable)
@@ -109,6 +115,42 @@ export default function LeaderboardScreen() {
         <Text style={{ color: theme.textSubtle, fontSize: 14, marginTop: 4 }}>
           Climb the ranks — every game and lesson counts.
         </Text>
+
+        {/* Sparrow Rating System entry point */}
+        <Pressable onPress={() => router.push('/rating' as any)}>
+          <Card variant="elevated" padding={14} style={{ marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: theme.gold + '22',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="stats-chart" size={20} color={theme.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.textSubtle, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 }}>
+                  SPARROW RATING
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                  <Text style={{ color: theme.text, fontWeight: '800', fontSize: 18 }}>
+                    {myRating ? Math.round(myRating.R) : '—'}
+                  </Text>
+                  {myRating ? (
+                    <Badge label={myRating.tier} tone="gold" />
+                  ) : (
+                    <Text style={{ color: theme.textSubtle, fontSize: 12 }}>Tap to start</Text>
+                  )}
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSubtle} />
+            </View>
+          </Card>
+        </Pressable>
 
         {/* Your rank banner */}
         {yourRank !== null ? (
