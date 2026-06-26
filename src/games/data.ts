@@ -16,6 +16,33 @@ function t(suit: TileSuit, value?: string): TileSpec {
   return { suit, value };
 }
 
+// Group builders for visual exposures (a pung = 3 identical, a kong = 4).
+function pung(suit: TileSuit, value?: string): TileSpec[] {
+  return [t(suit, value), t(suit, value), t(suit, value)];
+}
+function kong(suit: TileSuit, value?: string): TileSpec[] {
+  return [t(suit, value), t(suit, value), t(suit, value), t(suit, value)];
+}
+
+// Human-readable tile name for accessibility labels (e.g. "3 Bam", "Red Dragon").
+const WIND_NAMES: Record<string, string> = { N: 'North', E: 'East', S: 'South', W: 'West' };
+const DRAGON_NAMES: Record<string, string> = { R: 'Red', G: 'Green', Wh: 'White' };
+const SUIT_NAMES: Record<string, string> = { bam: 'Bam', crak: 'Crak', dot: 'Dot' };
+export function describeTile(spec: TileSpec): string {
+  switch (spec.suit) {
+    case 'wind':
+      return `${WIND_NAMES[spec.value ?? ''] ?? spec.value ?? ''} Wind`.trim();
+    case 'dragon':
+      return `${DRAGON_NAMES[spec.value ?? ''] ?? spec.value ?? ''} Dragon`.trim();
+    case 'flower':
+      return 'Flower';
+    case 'joker':
+      return 'Joker';
+    default:
+      return `${spec.value ?? ''} ${SUIT_NAMES[spec.suit] ?? spec.suit}`.trim();
+  }
+}
+
 export type GameId =
   | 'first-look'
   | 'tile-match'
@@ -130,8 +157,18 @@ export type HandPickerRound = {
   reason: string;
 };
 
+// One visible group on the table — an opponent's exposed pung/kong, or a
+// notable run of discards. Rendered as real tiles in the Discard game.
+export type ExposureGroup = {
+  seat: string; // 'Left' | 'Across' | 'Right' | 'Discards'
+  kind: string; // 'Pung' | 'Kong' | '' (empty for the discard pile)
+  tiles: TileSpec[];
+};
+
 export type DiscardRound = {
-  exposures: string;
+  exposures: string; // text fallback / legacy rounds without tile data
+  exposureGroups?: ExposureGroup[]; // visual tiles for the scene
+  note?: string; // optional read (e.g. "Likely a Year hand")
   hand: TileSpec[]; // 5 candidate discards
   correctIndex: number;
   reason: string;
@@ -707,72 +744,128 @@ export const HAND_PICKER_ROUNDS: HandPickerRound[] = [
 export const DISCARD_ROUNDS: DiscardRound[] = [
   {
     exposures: 'Right opponent exposed PUNG of 4-craks. Across opponent exposed KONG of flowers.',
+    exposureGroups: [
+      { seat: 'Right', kind: 'Pung', tiles: pung('crak', '4') },
+      { seat: 'Across', kind: 'Kong', tiles: kong('flower') },
+    ],
     hand: [t('crak', '4'), t('bam', '7'), t('dot', '2'), t('flower'), t('crak', '5')],
     correctIndex: 1,
     reason: 'Bam 7 is unrelated to either visible exposure — safest throw.',
   },
   {
     exposures: 'Left opponent has KONG of East winds + PUNG of red dragons.',
+    exposureGroups: [
+      { seat: 'Left', kind: 'Kong', tiles: kong('wind', 'E') },
+      { seat: 'Left', kind: 'Pung', tiles: pung('dragon', 'R') },
+    ],
     hand: [t('wind', 'E'), t('dragon', 'R'), t('crak', '6'), t('dot', '8'), t('bam', '3')],
     correctIndex: 4,
     reason: 'Bam 3 has nothing to do with winds-and-dragons hands — safe.',
   },
   {
-    exposures: 'Across opponent exposed FFFF and PUNG of 2-craks. Likely Year hand.',
+    exposures: 'Across opponent exposed FFFF and PUNG of 2-craks.',
+    note: 'Likely a Year hand (FFFF + 2026 digits).',
+    exposureGroups: [
+      { seat: 'Across', kind: 'Kong', tiles: kong('flower') },
+      { seat: 'Across', kind: 'Pung', tiles: pung('crak', '2') },
+    ],
     hand: [t('crak', '2'), t('flower'), t('wind', 'N'), t('bam', '5'), t('dot', '7')],
     correctIndex: 3,
     reason: 'Year hands need NEWS — bam 5 is not used in Year.',
   },
   {
     exposures: 'Right opponent has 3 exposed pungs in BAM suit.',
+    note: 'Three bam pungs — clearly a one-suit bam hand.',
+    exposureGroups: [
+      { seat: 'Right', kind: 'Pung', tiles: pung('bam', '2') },
+      { seat: 'Right', kind: 'Pung', tiles: pung('bam', '5') },
+      { seat: 'Right', kind: 'Pung', tiles: pung('bam', '7') },
+    ],
     hand: [t('bam', '6'), t('crak', '4'), t('dot', '9'), t('bam', '8'), t('flower')],
     correctIndex: 4,
     reason: 'They are clearly building a one-suit bam hand — flower is unrelated.',
   },
   {
     exposures: 'Across opponent exposed PUNG of 6-dots. Discard pile shows 3 jokers already.',
+    exposureGroups: [
+      { seat: 'Across', kind: 'Pung', tiles: pung('dot', '6') },
+      { seat: 'Discards', kind: '', tiles: [t('joker'), t('joker'), t('joker')] },
+    ],
     hand: [t('dot', '6'), t('crak', '5'), t('bam', '2'), t('joker'), t('dot', '9')],
     correctIndex: 2,
     reason: 'Bam 2 is far from the 6-dot pung and not a connector. Safest discard.',
   },
   {
     exposures: 'Left exposed KONG of green dragons. Across exposed PUNG of West winds.',
+    exposureGroups: [
+      { seat: 'Left', kind: 'Kong', tiles: kong('dragon', 'G') },
+      { seat: 'Across', kind: 'Pung', tiles: pung('wind', 'W') },
+    ],
     hand: [t('dragon', 'G'), t('wind', 'W'), t('crak', '7'), t('bam', '1'), t('dot', '4')],
     correctIndex: 3,
     reason: 'Bam 1 is unrelated to the dragons-and-winds attacks in progress.',
   },
   {
     exposures: 'Right opponent exposed KONG of 3-dots and PUNG of 6-dots — building 369 in dots.',
+    note: 'Building 369 in dots.',
+    exposureGroups: [
+      { seat: 'Right', kind: 'Kong', tiles: kong('dot', '3') },
+      { seat: 'Right', kind: 'Pung', tiles: pung('dot', '6') },
+    ],
     hand: [t('dot', '9'), t('dot', '3'), t('crak', '5'), t('bam', '8'), t('dot', '6')],
     correctIndex: 3,
     reason: 'Every dot tile feeds their 369 hand. Bam 8 is the only off-suit, off-pattern tile.',
   },
   {
     exposures: 'Across exposed PUNG of 1-craks and PUNG of 3-craks — looks like 13579 craks.',
+    note: 'Looks like 13579 in craks.',
+    exposureGroups: [
+      { seat: 'Across', kind: 'Pung', tiles: pung('crak', '1') },
+      { seat: 'Across', kind: 'Pung', tiles: pung('crak', '3') },
+    ],
     hand: [t('crak', '5'), t('crak', '7'), t('crak', '9'), t('dot', '4'), t('crak', '1')],
     correctIndex: 3,
     reason: 'Dot 4 has nothing to do with a one-suit 13579 crak hand.',
   },
   {
     exposures: 'Left exposed KONG of 2-bams and PUNG of 4-bams — likely 2468 bams.',
+    note: 'Likely 2468 in bams.',
+    exposureGroups: [
+      { seat: 'Left', kind: 'Kong', tiles: kong('bam', '2') },
+      { seat: 'Left', kind: 'Pung', tiles: pung('bam', '4') },
+    ],
     hand: [t('bam', '6'), t('bam', '8'), t('crak', '5'), t('dragon', 'Wh'), t('bam', '2')],
     correctIndex: 2,
     reason: 'Crak 5 is an odd, off-suit tile — useless to a 2468 bam hand.',
   },
   {
     exposures: 'Across exposed FFFF and KONG of North winds — Year hand in progress.',
+    note: 'Year hand in progress.',
+    exposureGroups: [
+      { seat: 'Across', kind: 'Kong', tiles: kong('flower') },
+      { seat: 'Across', kind: 'Kong', tiles: kong('wind', 'N') },
+    ],
     hand: [t('wind', 'N'), t('flower'), t('crak', '2'), t('bam', '6'), t('crak', '0')],
     correctIndex: 3,
     reason: 'Year needs NEWS + digits 2,0,2,5 — bam 6 is the only tile not on that list.',
   },
   {
     exposures: 'Right exposed PUNG of red dragons, PUNG of green dragons — Winds & Dragons.',
+    note: 'Winds & Dragons hand.',
+    exposureGroups: [
+      { seat: 'Right', kind: 'Pung', tiles: pung('dragon', 'R') },
+      { seat: 'Right', kind: 'Pung', tiles: pung('dragon', 'G') },
+    ],
     hand: [t('dragon', 'Wh'), t('wind', 'E'), t('crak', '7'), t('bam', '3'), t('dot', '9')],
     correctIndex: 2,
     reason: 'Crak 7 is a number tile — Winds & Dragons hands have no number tiles.',
   },
   {
     exposures: 'Left exposed KONG of flowers and PUNG of 5-craks. No other reads.',
+    exposureGroups: [
+      { seat: 'Left', kind: 'Kong', tiles: kong('flower') },
+      { seat: 'Left', kind: 'Pung', tiles: pung('crak', '5') },
+    ],
     hand: [t('flower'), t('crak', '5'), t('bam', '4'), t('dot', '6'), t('crak', '8')],
     correctIndex: 2,
     reason: 'Bam 4 is unrelated to the flower/5-crak signal — safer than feeding either.',

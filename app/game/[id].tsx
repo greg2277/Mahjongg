@@ -22,6 +22,7 @@ import {
   HAND_PICKER_ROUNDS,
   DISCARD_ROUNDS,
   JOKER_SWAP_ROUNDS,
+  describeTile,
 } from '@/src/games/data';
 
 type Feedback = { correct: boolean; reason?: string } | null;
@@ -497,19 +498,76 @@ function HandPickerBody({ round, feedback, award, next }: BodyProps) {
 }
 
 // Discard Decision
-function DiscardBody({ round, feedback, award, next }: BodyProps) {
+function DiscardBody({ round, feedback, selected, setSelected, award, next }: BodyProps) {
   const { theme } = useTheme();
   const r = DISCARD_ROUNDS[round % DISCARD_ROUNDS.length];
+  const chosen = selected.length ? selected[0] : null;
+
+  const choose = (i: number) => {
+    if (feedback) return;
+    setSelected([i]);
+    award(i === r.correctIndex, r.reason);
+  };
+
   return (
     <Card variant="elevated" padding={18}>
       <Text style={{ color: theme.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>
-        VISIBLE EXPOSURES
+        ON THE TABLE
       </Text>
-      <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', marginTop: 4, lineHeight: 20 }}>
-        {r.exposures}
-      </Text>
-      <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginTop: 14 }}>
-        Which tile is safest to discard?
+
+      {r.exposureGroups && r.exposureGroups.length > 0 ? (
+        <View style={{ marginTop: 10, gap: 8 }}>
+          {r.exposureGroups.map((g, gi) => (
+            <View
+              key={gi}
+              style={{
+                backgroundColor: theme.bg,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+                paddingVertical: 8,
+                paddingHorizontal: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.textSubtle,
+                  fontSize: 10,
+                  fontWeight: '800',
+                  letterSpacing: 0.8,
+                  marginBottom: 6,
+                }}
+              >
+                {(g.seat + (g.kind ? ` · ${g.kind}` : '')).toUpperCase()}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                {g.tiles.map((tl, ti) => (
+                  <Tile
+                    key={ti}
+                    suit={tl.suit}
+                    value={tl.value}
+                    size="xs"
+                    accessibilityLabel={describeTile(tl)}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600', marginTop: 4, lineHeight: 20 }}>
+          {r.exposures}
+        </Text>
+      )}
+
+      {r.note ? (
+        <Text style={{ color: theme.textSubtle, fontSize: 13, marginTop: 10, fontStyle: 'italic' }}>
+          {r.note}
+        </Text>
+      ) : null}
+
+      <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginTop: 16 }}>
+        Your hand — tap the tile you would discard
       </Text>
       <View
         style={{
@@ -520,15 +578,28 @@ function DiscardBody({ round, feedback, award, next }: BodyProps) {
           justifyContent: 'center',
         }}
       >
-        {r.hand.map((t, i) => (
-          <Pressable
-            key={i}
-            disabled={!!feedback}
-            onPress={() => award(i === r.correctIndex, r.reason)}
-          >
-            <Tile suit={t.suit} value={t.value} size="md" />
-          </Pressable>
-        ))}
+        {r.hand.map((tl, i) => {
+          const showCorrect = !!feedback && i === r.correctIndex;
+          return (
+            <Pressable
+              key={i}
+              disabled={!!feedback}
+              onPress={() => choose(i)}
+              accessibilityRole="button"
+              accessibilityLabel={`Discard ${describeTile(tl)}`}
+            >
+              <View
+                style={
+                  showCorrect
+                    ? { borderRadius: 12, borderWidth: 3, borderColor: '#10B981', padding: 1 }
+                    : undefined
+                }
+              >
+                <Tile suit={tl.suit} value={tl.value} size="md" selected={chosen === i} />
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
       <FeedbackBlock feedback={feedback} next={next} />
     </Card>

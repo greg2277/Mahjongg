@@ -80,6 +80,7 @@ export function Tile({
   selected = false,
   faded = false,
   style,
+  accessibilityLabel,
 }: {
   suit: TileSuit;
   value?: string;
@@ -87,6 +88,7 @@ export function Tile({
   selected?: boolean;
   faded?: boolean;
   style?: ViewStyle;
+  accessibilityLabel?: string;
 }) {
   const { theme } = useTheme();
   const dims = sizeMap[size];
@@ -131,6 +133,8 @@ export function Tile({
 
   return (
     <View
+      accessible={accessibilityLabel ? true : undefined}
+      accessibilityLabel={accessibilityLabel}
       style={[
         {
           width: dims.w,
