@@ -58,6 +58,10 @@ const STORAGE_KEY = '@jade-pavilion/profile';
 
 export type AuthResult = { success: true } | { success: false; error: string };
 
+export type PendingVerification = { email: string; token: string } | null;
+
+const generateToken = () => String(Math.floor(100000 + Math.random() * 900000));
+
 type Ctx = {
   profile: UserProfile;
   signedIn: boolean;
@@ -66,6 +70,9 @@ type Ctx = {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  pendingVerification: PendingVerification;
+  verifyEmailCode: (code: string) => Promise<{ success: boolean; error?: string }>;
+  resendVerification: () => Promise<void>;
   updateProfile: (patch: Partial<UserProfile>) => void;
   addXP: (amount: number) => void;
   completeLesson: () => void;
@@ -82,6 +89,9 @@ const UserContext = createContext<Ctx>({
   signUpWithEmail: noop,
   signInWithGoogle: noop,
   signOut: async () => undefined,
+  pendingVerification: null,
+  verifyEmailCode: async () => ({ success: false, error: 'not-ready' }),
+  resendVerification: async () => undefined,
   updateProfile: () => undefined,
   addXP: () => undefined,
   completeLesson: () => undefined,
@@ -92,6 +102,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [hydrated, setHydrated] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState<PendingVerification>(null);
 
   const signedIn = !!session;
   const loading = isPending || !hydrated;
@@ -192,11 +203,31 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = useCallback<Ctx['signUpWithEmail']>(
     async (email, password, displayName) => {
       const res = await authSignUpWithEmail(email.trim(), password, displayName.trim());
-      if (res.success) return { success: true };
+      if (res.success) {
+        setPendingVerification({ email: email.trim(), token: generateToken() });
+        return { success: true };
+      }
       return { success: false, error: res.error?.message ?? 'Sign-up failed' };
     },
     [],
   );
+
+  const verifyEmailCode = useCallback<Ctx['verifyEmailCode']>(
+    async (code) => {
+      if (pendingVerification && code.trim() === pendingVerification.token) {
+        setPendingVerification(null);
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid code' };
+    },
+    [pendingVerification],
+  );
+
+  const resendVerification = useCallback<Ctx['resendVerification']>(async () => {
+    setPendingVerification((prev) =>
+      prev ? { email: prev.email, token: generateToken() } : prev,
+    );
+  }, []);
 
   const signInWithEmail = useCallback<Ctx['signInWithEmail']>(async (email, password) => {
     const res = await authSignInWithEmail(email.trim(), password);
@@ -223,6 +254,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       signUpWithEmail,
       signInWithGoogle,
       signOut,
+      pendingVerification,
+      verifyEmailCode,
+      resendVerification,
       updateProfile,
       addXP,
       completeLesson,
@@ -236,6 +270,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       signUpWithEmail,
       signInWithGoogle,
       signOut,
+      pendingVerification,
+      verifyEmailCode,
+      resendVerification,
       updateProfile,
       addXP,
       completeLesson,

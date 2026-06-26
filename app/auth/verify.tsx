@@ -34,7 +34,7 @@ export default function VerifyScreen() {
     const res = await verifyEmailCode(code);
     setLoading(false);
     if (res.success) router.replace('/(tabs)');
-    else setError(res.error);
+    else setError(res.error ?? 'Invalid code');
   };
 
   const handleResend = async () => {
