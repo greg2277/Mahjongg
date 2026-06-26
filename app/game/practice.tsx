@@ -185,6 +185,11 @@ export default function PracticeScreen() {
   const [state, setState] = useState<PracticeState>(() => deal());
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('suit');
+  // Practice-only learning aid: seats (1–3, the AI bots) whose hands are
+  // peeked face-up. Default empty = all hidden. This state lives entirely on
+  // device against the local bot hands; multiplayer never has opponent tiles
+  // client-side, so this can never reveal a real opponent's hand.
+  const [revealedSeats, setRevealedSeats] = useState<Set<number>>(() => new Set());
   const [log, setLog] = useState<string[]>(['Game started. Charleston — pass 3 tiles to your LEFT.']);
   const [hintPattern, setHintPattern] = useState<string | null>(null);
   const recordedRef = useRef(false);
@@ -193,6 +198,15 @@ export default function PracticeScreen() {
 
   const pushLog = useCallback((msg: string) => {
     setLog((l) => [msg, ...l].slice(0, 8));
+  }, []);
+
+  const togglePeek = useCallback((seat: number) => {
+    setRevealedSeats((prev) => {
+      const next = new Set(prev);
+      if (next.has(seat)) next.delete(seat);
+      else next.add(seat);
+      return next;
+    });
   }, []);
 
   const myHand = state.hands[0];
@@ -352,6 +366,7 @@ export default function PracticeScreen() {
     recordedRef.current = false;
     setState(deal());
     setSelectedTileId(null);
+    setRevealedSeats(new Set());
     setHintPattern(null);
     setLog(['New game started. Charleston — pass 3 tiles to your LEFT.']);
   }, []);
@@ -518,6 +533,13 @@ export default function PracticeScreen() {
                 </View>
               </Card>
 
+              {/* Opponents — practice-only "peek" learning aid */}
+              <OpponentsPanel
+                hands={state.hands}
+                revealed={revealedSeats}
+                onTogglePeek={togglePeek}
+              />
+
               {/* My hand */}
               <Card variant="elevated" padding={14}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -650,6 +672,159 @@ export default function PracticeScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// A face-down tile back, sized to match the xs face tile (38×50). Used for
+// hidden opponent hands so the table reads like a real game until peeked.
+function TileBack() {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={{
+        width: 38,
+        height: 50,
+        borderRadius: 6,
+        backgroundColor: theme.primary,
+        borderWidth: 1,
+        borderColor: theme.primaryDark,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          borderWidth: 1.5,
+          borderColor: 'rgba(255,255,255,0.55)',
+        }}
+      />
+    </View>
+  );
+}
+
+// PRACTICE-ONLY: lets a learner peek an AI opponent's hand face-up on demand,
+// then hide it again. Reveal is per-seat and defaults to hidden. The real bot
+// tiles already live in local game state (the engine plays them), so peeking
+// reads from that state — nothing is fetched from the network. Multiplayer
+// never renders opponent tiles, so this aid cannot leak a real opponent's hand.
+function OpponentsPanel({
+  hands,
+  revealed,
+  onTogglePeek,
+}: {
+  hands: RuleTile[][];
+  revealed: Set<number>;
+  onTogglePeek: (seat: number) => void;
+}) {
+  const { theme } = useTheme();
+  return (
+    <Card variant="elevated" padding={14}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '800' }}>Opponents</Text>
+        <Badge label="Learning aid" tone="jade" />
+      </View>
+      <Text style={{ color: theme.textSubtle, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
+        Practice only — tap Peek to study a bot's hand, then hide it again. In multiplayer, real opponents' hands always stay hidden.
+      </Text>
+      {[1, 2, 3].map((seat) => (
+        <OpponentRow
+          key={seat}
+          seat={seat}
+          first={seat === 1}
+          name={SEATS[seat]}
+          wind={WINDS[seat]}
+          hand={hands[seat]}
+          revealed={revealed.has(seat)}
+          onToggle={() => onTogglePeek(seat)}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function OpponentRow({
+  seat,
+  first,
+  name,
+  wind,
+  hand,
+  revealed,
+  onToggle,
+}: {
+  seat: number;
+  first: boolean;
+  name: string;
+  wind: string;
+  hand: RuleTile[];
+  revealed: boolean;
+  onToggle: () => void;
+}) {
+  const { theme } = useTheme();
+  const label = revealed ? `Hide ${name}'s hand` : `Peek at ${name}'s hand`;
+  const shown = revealed ? sortTiles(hand, 'suit') : hand;
+  return (
+    <View
+      style={{
+        paddingTop: first ? 14 : 12,
+        marginTop: first ? 4 : 0,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: theme.border,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: theme.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 11 }}>{wind}</Text>
+          </View>
+          <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>{name}</Text>
+          <Text style={{ color: theme.textSubtle, fontSize: 11 }}>{hand.length} tiles</Text>
+        </View>
+        <Pressable
+          onPress={onToggle}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            backgroundColor: theme.gold + '22',
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            borderRadius: 999,
+          }}
+        >
+          <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={14} color={theme.goldDark} />
+          <Text style={{ color: theme.goldDark, fontSize: 12, fontWeight: '800' }}>
+            {revealed ? 'Hide' : 'Peek'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={label}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 10 }}>
+          {shown.map((t) =>
+            revealed ? (
+              <Tile key={t.id} suit={t.suit} value={t.value} size="xs" />
+            ) : (
+              <TileBack key={t.id} />
+            ),
+          )}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
