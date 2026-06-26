@@ -130,7 +130,7 @@ export default function RoomScreen() {
 
   const handleShare = async () => {
     try {
-      await Share.share({ message: `Join my Jade Pavilion table — code ${room.code}` });
+      await Share.share({ message: `Join my Sparrow table — code ${room.code}` });
     } catch {}
   };
 

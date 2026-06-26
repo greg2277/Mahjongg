@@ -1,47 +1,63 @@
-// Jade Pavilion brand palette — inspired by jade, vermillion red, and gold leaf.
+// Sparrow brand palette — "Soft & Airy": sage green, blush, soft gold on light, breathable surfaces.
+// Grounded in American Mahjong demographic + color-psychology research:
+//   - Sage green: calm, gentle, wellness/lifestyle feel; nods to jade roots without heaviness
+//   - Blush rose: warm, welcoming accent (used for highlights / secondary actions)
+//   - Soft gold: gentle premium signal (used sparingly — subtitle rule, badges)
+//   - Airy near-white backgrounds with generous negative space
+//   - Warm-neutral charcoal-sage text: soft, never harsh pure black
+// Brand: "Sparrow" (麻雀 máquè = "sparrow"; the 1-Bam tile is a bird) · subtitle "American Mahjong".
 // Used by all screens; pair with NativeWind classes where helpful.
 
 export const palette = {
-  jade: {
-    50: '#ECFDF5',
-    100: '#D1FAE5',
-    200: '#A7F3D0',
-    300: '#6EE7B7',
-    400: '#34D399',
-    500: '#10B981',
-    600: '#059669',
-    700: '#047857',
-    800: '#065F46',
-    900: '#064E3B',
-    deep: '#00352B',
+  sage: {
+    50: '#F2F8F5',
+    100: '#E6F1EC',
+    200: '#CFE4DB',
+    300: '#AED3C5',
+    400: '#92C2B1',
+    500: '#7BB0A0', // brand primary — Soft Sage
+    600: '#5BA28D', // deeper sage (mark / emphasis)
+    700: '#488975',
+    800: '#3A6F5F',
+    900: '#2E4A40',
+    deep: '#1C2622',
   },
-  vermillion: {
-    50: '#FEF2F2',
-    100: '#FEE2E2',
-    300: '#FCA5A5',
-    500: '#EF4444',
-    600: '#DC2626',
-    700: '#B91C1C',
-    800: '#7F1D1D',
-    deep: '#3B0A0A',
+  blush: {
+    // Blush accent family
+    50: '#FDF2F2',
+    100: '#FBE5E5',
+    200: '#F6D2D2',
+    300: '#EFB9B9',
+    400: '#E9A8A8', // standard blush
+    500: '#DD8E8E',
+    600: '#C97373', // deeper blush (text-on-light contrast)
+    700: '#A85656',
+    deep: '#5A2E2E',
   },
   gold: {
-    100: '#FEF3C7',
-    300: '#FCD34D',
-    400: '#FBBF24',
-    500: '#F59E0B',
-    600: '#D97706',
-    700: '#B45309',
-    leaf: '#E0B449',
+    // Soft gold accent family
+    100: '#FBF1D6',
+    200: '#F5E3B4',
+    300: '#EAD08C',
+    400: '#E4C97E', // standard soft gold
+    500: '#D4B45F',
+    600: '#B8973F',
+    700: '#8F7430',
+  },
+  paper: {
+    // Airy neutral foundation (the "table" / light surfaces)
+    bg: '#F7FAF8', // primary background — barely-there sage tint
+    surface: '#FFFFFF', // cards / modals — clean white
+    alt: '#EEF5F1', // secondary surfaces / tile table
+    border: '#DDE7E1', // soft border
+    borderStrong: '#C7D6CE',
   },
   ink: {
-    50: '#F8FAF9',
-    100: '#F1F5F3',
-    200: '#E5EAE7',
-    300: '#CBD2CE',
-    500: '#6B7872',
-    700: '#2D3A34',
-    900: '#0E1714',
+    // Charcoal-sage text foundation
+    900: '#2E3A35', // primary text (soft charcoal-green)
+    700: '#52615A', // secondary text
+    500: '#6B7A73', // tertiary / muted
+    300: '#9AA7A1', // disabled / subtle
   },
 } as const;
 
@@ -76,62 +92,65 @@ export type ThemeColors = {
   tabBg: string;
 };
 
+// LIGHT MODE — airy near-white "table", soft sage structure, blush + gold for moments.
+// (~60% paper surfaces / ~30% sage / ~10% blush+gold.)
 export const lightTheme: ThemeColors = {
   mode: 'light',
-  bg: '#F6FBF8',
-  bgElevated: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F1F5F3',
-  border: '#E2EAE5',
-  borderStrong: '#CBD7D0',
-  text: '#0E1714',
-  textMuted: '#3F4D46',
-  textSubtle: '#6B7872',
-  primary: palette.jade[700],
-  primaryDark: palette.jade[800],
-  primaryFg: '#FFFFFF',
-  accent: palette.vermillion[600],
-  accentFg: '#FFFFFF',
-  gold: palette.gold.leaf,
-  goldDark: palette.gold[600],
-  danger: palette.vermillion[600],
-  success: palette.jade[600],
-  shadow: 'rgba(6, 78, 59, 0.18)',
-  gradientPrimary: [palette.jade[700], palette.jade[500]] as const,
-  gradientWarm: [palette.vermillion[600], palette.gold[500]] as const,
-  gradientHero: [palette.jade.deep, palette.jade[700], palette.jade[500]] as const,
-  tabActive: palette.jade[700],
-  tabInactive: '#7C8B83',
-  tabBg: '#FFFFFF',
+  bg: palette.paper.bg, // #F7FAF8
+  bgElevated: palette.paper.surface, // #FFFFFF
+  surface: palette.paper.surface, // #FFFFFF cards
+  surfaceAlt: palette.paper.alt, // #EEF5F1 tile-table / secondary
+  border: palette.paper.border, // #DDE7E1
+  borderStrong: palette.paper.borderStrong, // #C7D6CE
+  text: palette.ink[900], // #2E3A35 (≈9.7:1 on bg — WCAG AAA)
+  textMuted: palette.ink[700], // #52615A
+  textSubtle: palette.ink[500], // #6B7A73
+  primary: palette.sage[500], // #7BB0A0
+  primaryDark: palette.sage[600], // #5BA28D
+  primaryFg: '#FFFFFF', // white reads on sage buttons
+  accent: palette.blush[400], // #E9A8A8 blush
+  accentFg: palette.blush.deep, // #5A2E2E — dark text on light blush (AA)
+  gold: palette.gold[400], // #E4C97E soft gold
+  goldDark: palette.gold[600], // #B8973F (for text/icons needing contrast)
+  danger: '#C9483F', // muted brick red (errors only — distinct from blush accent)
+  success: palette.sage[600], // #5BA28D
+  shadow: 'rgba(46, 58, 53, 0.10)', // soft sage-tinted shadow (airy, not heavy)
+  gradientPrimary: [palette.sage[600], palette.sage[400]] as const,
+  gradientWarm: [palette.blush[400], palette.gold[300]] as const,
+  gradientHero: [palette.sage[400], palette.sage[200], palette.paper.bg] as const, // airy top-down
+  tabActive: palette.sage[600], // #5BA28D
+  tabInactive: '#AEB9B3', // soft stone-sage
+  tabBg: palette.paper.surface, // #FFFFFF
 };
 
+// DARK MODE — deep soft-forest (not pure black), warm-light text, lightened sage.
 export const darkTheme: ThemeColors = {
   mode: 'dark',
-  bg: '#06120E',
-  bgElevated: '#0C1F18',
-  surface: '#0F2620',
-  surfaceAlt: '#163029',
-  border: '#1E3A33',
-  borderStrong: '#27514A',
-  text: '#F1F5F3',
-  textMuted: '#B7C4BD',
-  textSubtle: '#7E8E87',
-  primary: palette.jade[400],
-  primaryDark: palette.jade[500],
-  primaryFg: '#06120E',
-  accent: palette.vermillion[500],
-  accentFg: '#FFFFFF',
-  gold: palette.gold[400],
-  goldDark: palette.gold[600],
-  danger: palette.vermillion[500],
-  success: palette.jade[400],
-  shadow: 'rgba(0, 0, 0, 0.5)',
-  gradientPrimary: [palette.jade[600], palette.jade[400]] as const,
-  gradientWarm: [palette.vermillion[700], palette.gold[600]] as const,
-  gradientHero: ['#031310', palette.jade.deep, palette.jade[700]] as const,
-  tabActive: palette.jade[300],
-  tabInactive: '#5C6E67',
-  tabBg: '#0C1F18',
+  bg: '#1C2622', // deep soft forest
+  bgElevated: '#27332E',
+  surface: '#27332E',
+  surfaceAlt: '#2F3D37',
+  border: '#3A4842',
+  borderStrong: '#4A5A53',
+  text: '#E7EFEA', // warm-light (≈12:1 on bg)
+  textMuted: '#A9B7B0',
+  textSubtle: '#82918A',
+  primary: '#9FCBBC', // lightened sage for contrast on dark
+  primaryDark: palette.sage[500], // #7BB0A0
+  primaryFg: '#15201C',
+  accent: '#EEB7B7', // softened blush pops on dark
+  accentFg: '#3A1E1E',
+  gold: '#E9D08C', // pale gold pops on dark
+  goldDark: palette.gold[400], // #E4C97E
+  danger: '#E08077', // lightened brick for dark bg
+  success: '#9FCBBC',
+  shadow: 'rgba(0, 0, 0, 0.45)',
+  gradientPrimary: ['#5BA28D', '#9FCBBC'] as const,
+  gradientWarm: ['#EEB7B7', '#E9D08C'] as const,
+  gradientHero: ['#15201C', palette.sage.deep, '#3E5950'] as const,
+  tabActive: '#9FCBBC',
+  tabInactive: '#76847E',
+  tabBg: '#27332E',
 };
 
 export const getTheme = (mode: ThemeMode): ThemeColors =>

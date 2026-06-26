@@ -52,7 +52,7 @@ export default function SignInScreen() {
                   Welcome back
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 2 }}>
-                  Sign in to Jade Pavilion
+                  Sign in to Sparrow
                 </Text>
               </View>
             </View>

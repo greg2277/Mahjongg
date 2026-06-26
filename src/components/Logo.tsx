@@ -36,7 +36,7 @@ export function LogoMark({ size = 44 }: { size?: number }) {
             letterSpacing: -1,
           }}
         >
-          翡
+          雀
         </Text>
       </LinearGradient>
     </View>
@@ -55,7 +55,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
           letterSpacing: -0.4,
         }}
       >
-        Jade Pavilion
+        Sparrow
       </Text>
       {subtitle ? (
         <Text style={{ fontSize: 11, color: theme.gold, fontWeight: '700', letterSpacing: 1.5 }}>

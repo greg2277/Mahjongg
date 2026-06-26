@@ -53,7 +53,7 @@ export default function SignUpScreen() {
                   Join the table
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 2 }}>
-                  Create your Jade Pavilion account
+                  Create your Sparrow account
                 </Text>
               </View>
             </View>

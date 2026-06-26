@@ -70,7 +70,7 @@ export default function HomeScreen() {
                 <LogoMark size={42} />
                 <View>
                   <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800' }}>
-                    Jade Pavilion
+                    Sparrow
                   </Text>
                   <Text
                     style={{
