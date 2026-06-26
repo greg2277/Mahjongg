@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Platform, Text, View, type ViewStyle } from 'react-native';
+import { Text, View, type ViewStyle } from 'react-native';
 import { SvgUri } from 'react-native-svg';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { resolveTileAsset } from './tileAssets';
@@ -8,16 +8,8 @@ import { resolveTileAsset } from './tileAssets';
 // Every card.json token is mapped to its uploaded CDN SVG in tileAssets.ts:
 //   Bam 1-9, Crak 1-9, Dot 1-9, Winds (N/E/S/W), Dragons (R=中, G=發, Wh=Soap),
 //   Flower, Joker, and the year-hand '0' token (renders Soap / White Dragon).
-//
-// IMPORTANT — platform-aware rendering:
-//   * On WEB, react-native-svg's <SvgUri> does NOT preserve a remote SVG's
-//     internal fill colors and paints the whole graphic solid black. So on web
-//     we render the SVG through a plain RN <Image> (the browser shows it as a
-//     normal full-color <img>).
-//   * On NATIVE (iOS/Android), <Image> cannot rasterize an SVG, but <SvgUri>
-//     renders remote SVGs correctly, so we use that there.
-// If an asset is ever missing/errors it falls back to a readable text glyph so a
-// hand never shows a blank placeholder.
+// If an asset is ever missing it falls back to a readable text glyph so a hand
+// never shows a blank placeholder.
 
 export type TileSuit = 'bam' | 'crak' | 'dot' | 'wind' | 'dragon' | 'flower' | 'joker';
 
@@ -97,38 +89,6 @@ export function Tile({
   const innerW = dims.w - 4;
   const innerH = dims.h - 4;
 
-  const renderArt = () => {
-    if (!uri || errored) {
-      return (
-        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <FallbackGlyph suit={suit} value={value} fontSize={dims.value} />
-        </View>
-      );
-    }
-
-    // WEB: render the SVG as a normal image so its colors are preserved.
-    if (Platform.OS === 'web') {
-      return (
-        <Image
-          source={{ uri }}
-          style={{ width: innerW, height: innerH }}
-          resizeMode="contain"
-          onError={() => setErrored(true)}
-        />
-      );
-    }
-
-    // NATIVE: SvgUri renders remote SVGs correctly with full color.
-    return (
-      <SvgUri
-        uri={uri}
-        width={innerW}
-        height={innerH}
-        onError={() => setErrored(true)}
-      />
-    );
-  };
-
   return (
     <View
       style={[
@@ -152,7 +112,18 @@ export function Tile({
         style,
       ]}
     >
-      {renderArt()}
+      {uri && !errored ? (
+        <SvgUri
+          uri={uri}
+          width={innerW}
+          height={innerH}
+          onError={() => setErrored(true)}
+        />
+      ) : (
+        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <FallbackGlyph suit={suit} value={value} fontSize={dims.value} />
+        </View>
+      )}
     </View>
   );
 }
