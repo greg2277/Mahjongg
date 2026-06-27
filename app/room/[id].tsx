@@ -346,12 +346,23 @@ export default function RoomScreen() {
                       <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>{seat.wind}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>
-                        {seat.name}
-                        {isMe ? ' (you)' : ''}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}>
+                          {seat.name}
+                          {isMe ? ' (you)' : ''}
+                        </Text>
+                        {seat.userId && seat.srsTier ? (
+                          <Badge label={seat.srsTier} tone="gold" />
+                        ) : null}
+                      </View>
                       <Text style={{ color: theme.textSubtle, fontSize: 11 }}>
-                        {seat.userId || seat.isAI ? `ELO ${seat.elo}` : 'Waiting…'}
+                        {seat.userId
+                          ? seat.srsRating
+                            ? `Rating ${Math.round(seat.srsRating)}${seat.srsProvisional ? ' · provisional' : ''}`
+                            : `ELO ${seat.elo}`
+                          : seat.isAI
+                          ? `ELO ${seat.elo}`
+                          : 'Waiting…'}
                         {seat.isAI ? ' · AI' : ''}
                       </Text>
                     </View>

@@ -184,22 +184,24 @@ describe('SRS — table strength multiplier', () => {
 describe('SRS — tiers', () => {
   it('maps ratings to the correct tier across boundaries', () => {
     expect(tierForRating(1200).name).toBe('Beginner');
-    expect(tierForRating(1299).name).toBe('Beginner');
-    expect(tierForRating(1300).name).toBe('Novice');
-    expect(tierForRating(1449).name).toBe('Novice');
-    expect(tierForRating(1450).name).toBe('Apprentice');
-    expect(tierForRating(1600).name).toBe('Skilled');
-    expect(tierForRating(1750).name).toBe('Expert');
-    expect(tierForRating(1900).name).toBe('Master');
-    expect(tierForRating(2050).name).toBe('Elite');
-    expect(tierForRating(2200).name).toBe('Grand Master');
+    expect(tierForRating(1449).name).toBe('Beginner');
+    expect(tierForRating(1450).name).toBe('Novice');
+    expect(tierForRating(1500).name).toBe('Novice'); // start rating sits in Novice
+    expect(tierForRating(1549).name).toBe('Novice');
+    expect(tierForRating(1550).name).toBe('Apprentice');
+    expect(tierForRating(1650).name).toBe('Skilled');
+    expect(tierForRating(1775).name).toBe('Expert');
+    expect(tierForRating(1925).name).toBe('Master');
+    expect(tierForRating(2100).name).toBe('Elite');
+    expect(tierForRating(2300).name).toBe('Grand Master');
     expect(tierForRating(3000).name).toBe('Grand Master');
   });
 
   it('exposes a display range for each tier', () => {
-    const novice = tierForRating(1380);
-    expect(novice.min).toBe(1300);
-    expect(novice.max).toBe(1449);
+    const novice = tierForRating(1500);
+    expect(novice.name).toBe('Novice');
+    expect(novice.min).toBe(1450);
+    expect(novice.max).toBe(1549);
   });
 });
 

@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
+import { bumpCounter, dayKey } from "./metrics";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Sparrow Rating System (SRS) — Convex backend.
@@ -112,18 +113,21 @@ function updatePlayer(state: G2, matches: Match[], tau = DEFAULT_TAU): G2 {
   return { rating: newMu * SCALE + DEFAULT_RATING, rd: newPhi * SCALE, sigma: newSigma };
 }
 
+// MUST stay in sync with src/rating/tiers.ts (engine constants are replicated;
+// see the header note). Re-centered for learners: start R1500 lands in Novice
+// (tier 2), low tiers are narrow (fast early progress), top tiers widen.
 const TIER_MINS: { name: string; min: number }[] = [
   { name: "Beginner", min: -Infinity },
-  { name: "Novice", min: 1300 },
-  { name: "Apprentice", min: 1450 },
-  { name: "Skilled", min: 1600 },
-  { name: "Expert", min: 1750 },
-  { name: "Master", min: 1900 },
-  { name: "Elite", min: 2050 },
-  { name: "Grand Master", min: 2200 },
+  { name: "Novice", min: 1450 },
+  { name: "Apprentice", min: 1550 },
+  { name: "Skilled", min: 1650 },
+  { name: "Expert", min: 1775 },
+  { name: "Master", min: 1925 },
+  { name: "Elite", min: 2100 },
+  { name: "Grand Master", min: 2300 },
 ];
 
-function tierForRating(rating: number): string {
+export function tierForRating(rating: number): string {
   let name = TIER_MINS[0].name;
   for (const t of TIER_MINS) {
     if (rating >= t.min) name = t.name;
@@ -220,6 +224,7 @@ export const createRatingSession = mutation({
       status: "pending",
       createdAt: Date.now(),
     });
+    await bumpCounter(ctx, dayKey("ratingSessions"), 1);
     return { sessionId: id };
   },
 });
@@ -366,6 +371,31 @@ async function rateCorroboratedSession(ctx: any, sessionId: Id<"ratingSessions">
 
   await ctx.db.patch(sessionId, { status: "rated", ratedAt: now, results });
   return results;
+}
+
+/**
+ * Read a user's current SRS standing for matchmaking. Returns the default
+ * unrated profile (R1500/RD350, provisional) when the player has no `ratings`
+ * row yet, so callers never have to special-case new players. Shared by
+ * `multiplayer.ts` to pair players by skill and to badge opponents by tier.
+ */
+export async function srsSnapshot(
+  ctx: any,
+  userId: string
+): Promise<{ rating: number; rd: number; tier: string; provisional: boolean; hasRating: boolean }> {
+  const rec = await ctx.db
+    .query("ratings")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .unique();
+  const R = rec?.R ?? DEFAULT_RATING;
+  const RD = rec?.RD ?? DEFAULT_RD;
+  return {
+    rating: R,
+    rd: RD,
+    tier: rec?.tier ?? tierForRating(R),
+    provisional: rec ? rec.provisional : RD >= PROVISIONAL_RD,
+    hasRating: !!rec,
+  };
 }
 
 /** Current rating + history for the signed-in player. */

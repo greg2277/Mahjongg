@@ -21,11 +21,13 @@ export default function MultiplayerScreen() {
   const tables = useQuery(api.multiplayer.listOpenTables, isAuthed ? {} : 'skip');
   const myRoom = useQuery(api.multiplayer.myActiveRoom, isAuthed ? {} : 'skip');
   const matchStatus = useQuery(api.multiplayer.myMatchmakingStatus, isAuthed ? {} : 'skip');
+  const skillMatch = useQuery(api.multiplayer.findSkillMatchedRoom, isAuthed ? {} : 'skip');
 
   const createRoom = useMutation(api.multiplayer.createRoom);
   const joinRoom = useMutation(api.multiplayer.joinRoom);
   const enterMM = useMutation(api.multiplayer.enterMatchmaking);
   const leaveMM = useMutation(api.multiplayer.leaveMatchmaking);
+  const quickplay = useMutation(api.multiplayer.quickplaySkillMatch);
   const joinSpectator = useMutation(api.social.joinAsSpectator);
 
   const [code, setCode] = useState('');
@@ -51,6 +53,18 @@ export default function MultiplayerScreen() {
       Alert.alert('Matchmaking', e?.message ?? 'Failed');
     }
     setBusy(null);
+  };
+
+  const handleSkillMatch = async () => {
+    if (!isAuthed) return router.push('/auth/sign-in' as any);
+    setBusy('skill');
+    try {
+      const res = await quickplay({});
+      router.push(`/room/${res.roomId}` as any);
+    } catch (e: any) {
+      Alert.alert('Skill match', e?.message ?? 'Failed');
+      setBusy(null);
+    }
   };
 
   const handleHost = async (mode: 'private' | 'casual') => {
@@ -162,8 +176,8 @@ export default function MultiplayerScreen() {
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 4 }}>
               {queued
-                ? `Waiting ${Math.round((matchStatus?.waitingMs ?? 0) / 1000)}s · matched at ±150 ELO`
-                : 'Match against players near your ELO. Auto-routes when 4 are ready.'}
+                ? `Waiting ${Math.round((matchStatus?.waitingMs ?? 0) / 1000)}s · matched within ±${200} rating (wider while provisional)`
+                : 'Match against players near your Sparrow Rating. Auto-routes when 4 are ready.'}
             </Text>
             <View style={{ marginTop: 14 }}>
               <PrimaryButton
@@ -174,6 +188,43 @@ export default function MultiplayerScreen() {
               />
             </View>
           </LinearGradient>
+
+          {isAuthed && (
+            <Pressable onPress={handleSkillMatch} disabled={busy === 'skill'}>
+              <Card variant="elevated" padding={14} style={{ marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: theme.gold + '22',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="flash" size={20} color={theme.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>
+                        {busy === 'skill' ? 'Finding a table…' : 'Skill match — play now'}
+                      </Text>
+                      {skillMatch?.myTier ? <Badge label={skillMatch.myTier} tone="gold" /> : null}
+                    </View>
+                    <Text style={{ color: theme.textSubtle, fontSize: 12, marginTop: 2 }}>
+                      {skillMatch
+                        ? `Open table near your level (avg ${skillMatch.srsAvg}${
+                            skillMatch.tiers.length ? ` · ${skillMatch.tiers.join(', ')}` : ''
+                          })`
+                        : 'Drops you into the closest open table by Sparrow Rating, or seeds a new one.'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.textSubtle} />
+                </View>
+              </Card>
+            </Pressable>
+          )}
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
             <View style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: theme.border }}>
@@ -268,12 +319,15 @@ export default function MultiplayerScreen() {
                   <Ionicons name="people" size={18} color="#FFF" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{t.host}</Text>
                     <Badge label={t.mode === 'ranked' ? 'Ranked' : 'Casual'} tone={t.mode === 'ranked' ? 'gold' : 'jade'} />
+                    {t.tiers?.map((tier) => (
+                      <Badge key={tier} label={tier} tone="neutral" />
+                    ))}
                   </View>
                   <Text style={{ color: theme.textSubtle, fontSize: 12, marginTop: 2 }}>
-                    {t.filled}/4 seats · ELO {t.eloAvg} · #{t.code}
+                    {t.filled}/4 seats · {t.srsAvg ? `Rating ${t.srsAvg}` : `ELO ${t.eloAvg}`} · #{t.code}
                   </Text>
                 </View>
                 {t.filled >= 4 && (

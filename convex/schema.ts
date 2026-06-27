@@ -110,12 +110,20 @@ export default defineSchema({
         name: v.string(),
         avatarSeed: v.optional(v.string()),
         elo: v.number(),
+        // SRS skill snapshot at seat time (optional/additive — older rooms and
+        // guest/AI seats may omit these). Used for skill-based pairing + tier badges.
+        srsRating: v.optional(v.number()),
+        srsTier: v.optional(v.string()),
+        srsProvisional: v.optional(v.boolean()),
         ready: v.boolean(),
         isAI: v.boolean(),
         wind: v.union(v.literal("E"), v.literal("S"), v.literal("W"), v.literal("N")),
       })
     ),
     eloAvg: v.number(),
+    // Average SRS rating of rated human seats (optional/additive). Drives the
+    // skill-matched quickplay window. Absent on legacy rooms.
+    srsAvg: v.optional(v.number()),
     turnSeat: v.optional(v.number()),
     turnDeadline: v.optional(v.number()),
     // Monotonic move-sequence counter, allocated atomically on the room doc to
@@ -153,12 +161,28 @@ export default defineSchema({
     userId: v.string(),
     displayName: v.string(),
     elo: v.number(),
+    // SRS skill snapshot (optional/additive). When present, the queue pairs by
+    // SRS rating within a window that widens for provisional players.
+    srsRating: v.optional(v.number()),
+    srsProvisional: v.optional(v.boolean()),
     mode: v.union(v.literal("ranked"), v.literal("casual")),
     joinedAt: v.number(),
     matchedRoomId: v.optional(v.id("rooms")),
   })
     .index("by_mode_elo", ["mode", "elo"])
     .index("by_user", ["userId"]),
+
+  // ── Lightweight load / cost monitoring ─────────────────────────────────
+  // A single generic counter table. Each row is one named counter, looked up
+  // by key via the index (O(1), no table scans). Cumulative keys live under a
+  // bare name (e.g. "registeredUsers", "roomsCreatedTotal"); per-day keys are
+  // namespaced with the ISO date (e.g. "sessions:2026-06-26"). Mutations bump
+  // these additively, so monitoring never scans large tables.
+  appMetrics: defineTable({
+    key: v.string(),
+    value: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // ── Sparrow Rating System (SRS) ─────────────────────────────────────────
   // Current Glicko-2 rating per player.

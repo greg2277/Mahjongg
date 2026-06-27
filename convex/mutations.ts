@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { authComponent } from "./auth";
+import { bumpCounter } from "./metrics";
 
 async function getAuthUser(ctx: any) {
   const userMetadata = await authComponent.getAuthUser(ctx);
@@ -46,6 +47,9 @@ async function ensureProfile(ctx: any, userId: string, displayName: string) {
     createdAt: now,
     updatedAt: now,
   });
+  // A profile is created exactly once per player (on their first authenticated
+  // action), so this is a faithful, cheap count of registered/active users.
+  await bumpCounter(ctx, "registeredUsers", 1);
   return await ctx.db.get(id);
 }
 

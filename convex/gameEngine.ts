@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { authComponent } from "./auth";
 import { validateWinningHand, validateExposure, CURRENT_CARD_YEAR } from "./nmjlValidation";
+import { bumpCounter } from "./metrics";
 
 // ─────────────────────────────────────────────────────────────────────────
 // AUTHORITATIVE GAME ENGINE
@@ -439,6 +440,7 @@ export const declareMahjong = mutation({
       lastActionAt: Date.now(),
       turnDeadline: undefined,
     });
+    await bumpCounter(ctx, "activeRooms", -1);
 
     const startedAt = state.startedAt ?? Date.now();
     const durationMs = Date.now() - startedAt;
