@@ -153,8 +153,8 @@ function HandRow({ pattern, sortMode }: { pattern: HandPattern; sortMode: SortMo
                 borderRadius: 999,
               }}
             >
-              <Ionicons name="lock-closed" size={10} color={theme.accent} />
-              <Text style={{ color: theme.accent, fontSize: 10, fontWeight: '800' }}>CONC</Text>
+              <Ionicons name="lock-closed" size={10} color={theme.accentText} />
+              <Text style={{ color: theme.accentText, fontSize: 10, fontWeight: '800' }}>CONC</Text>
             </View>
           ) : null}
         </View>

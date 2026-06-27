@@ -45,7 +45,7 @@ export default function LessonScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, padding: 20 }}>
         <Text style={{ color: theme.text, fontSize: 18 }}>Lesson not found.</Text>
         <Pressable onPress={() => router.back()} style={{ marginTop: 16 }}>
-          <Text style={{ color: theme.primary, fontWeight: '700' }}>Go back</Text>
+          <Text style={{ color: theme.primaryText, fontWeight: '700' }}>Go back</Text>
         </Pressable>
       </SafeAreaView>
     );

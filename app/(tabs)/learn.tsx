@@ -176,7 +176,7 @@ export default function LearnScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ color: theme.primary, fontSize: 16, fontWeight: '900' }}>
+                    <Text style={{ color: theme.primaryText, fontSize: 16, fontWeight: '900' }}>
                       {idx + 1}
                     </Text>
                   </View>

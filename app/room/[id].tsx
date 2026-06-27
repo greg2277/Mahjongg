@@ -523,7 +523,7 @@ export default function RoomScreen() {
                           key={m._id as string}
                           style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}
                         >
-                          <Text style={{ color: theme.primary, fontSize: 12, fontWeight: '700' }}>
+                          <Text style={{ color: theme.primaryText, fontSize: 12, fontWeight: '700' }}>
                             {seatName}:
                           </Text>
                           <Text style={{ color: theme.text, fontSize: 12, flex: 1 }}>

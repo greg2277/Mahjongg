@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View, type ViewStyle } from 'react-native';
 import { useTheme } from '@/src/theme/ThemeProvider';
+import { palette } from '@/src/theme/colors';
 
 type Tone = 'jade' | 'red' | 'gold' | 'neutral';
 
@@ -14,10 +15,11 @@ export function Badge({
   style?: ViewStyle;
 }) {
   const { theme } = useTheme();
+  const dark = theme.mode === 'dark';
   const styles: Record<Tone, { bg: string; fg: string }> = {
-    jade: { bg: theme.mode === 'dark' ? 'rgba(16,185,129,0.18)' : '#D1FAE5', fg: theme.primary },
-    red: { bg: theme.mode === 'dark' ? 'rgba(239,68,68,0.2)' : '#FEE2E2', fg: theme.accent },
-    gold: { bg: theme.mode === 'dark' ? 'rgba(251,191,36,0.18)' : '#FEF3C7', fg: theme.goldDark },
+    jade: { bg: dark ? 'rgba(16,185,129,0.18)' : '#D1FAE5', fg: theme.primaryText },
+    red: { bg: dark ? 'rgba(239,68,68,0.2)' : '#FEE2E2', fg: dark ? theme.accent : palette.blush.deep },
+    gold: { bg: dark ? 'rgba(251,191,36,0.18)' : '#FEF3C7', fg: theme.goldText },
     neutral: { bg: theme.surfaceAlt, fg: theme.textMuted },
   };
   const s = styles[tone];

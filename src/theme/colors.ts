@@ -43,6 +43,7 @@ export const palette = {
     500: '#D4B45F',
     600: '#B8973F',
     700: '#8F7430',
+    800: '#6B5418', // darkest gold — text on light (AA on white/sage/gold-tint)
   },
   paper: {
     // Airy neutral foundation (the "table" / light surfaces)
@@ -76,11 +77,15 @@ export type ThemeColors = {
   textSubtle: string;
   primary: string;
   primaryDark: string;
+  primaryText: string;
   primaryFg: string;
   accent: string;
   accentFg: string;
+  accentText: string;
   gold: string;
   goldDark: string;
+  goldText: string;
+  goldOnHero: string;
   danger: string;
   success: string;
   shadow: string;
@@ -107,17 +112,26 @@ export const lightTheme: ThemeColors = {
   textSubtle: palette.ink[500], // #6B7A73
   primary: palette.sage[500], // #7BB0A0
   primaryDark: palette.sage[600], // #5BA28D
+  primaryText: palette.sage[800], // #3A6F5F — sage as TEXT on light (AA: ≥5.2:1 on bg/surface/alt)
   primaryFg: '#FFFFFF', // white reads on sage buttons
   accent: palette.blush[400], // #E9A8A8 blush
-  accentFg: palette.blush.deep, // #5A2E2E — dark text on light blush (AA)
+  accentFg: palette.blush.deep, // #5A2E2E — dark text on light blush bg (AA)
+  accentText: palette.blush[700], // #A85656 — blush as TEXT on light/white (AA ≥4.5:1)
   gold: palette.gold[400], // #E4C97E soft gold
-  goldDark: palette.gold[600], // #B8973F (for text/icons needing contrast)
+  goldDark: palette.gold[600], // #B8973F (icons/fills needing some contrast)
+  goldText: palette.gold[800], // #6B5418 — gold as TEXT on light (AA ≥4.5:1)
   danger: '#C9483F', // muted brick red (errors only — distinct from blush accent)
   success: palette.sage[600], // #5BA28D
   shadow: 'rgba(46, 58, 53, 0.10)', // soft sage-tinted shadow (airy, not heavy)
   gradientPrimary: [palette.sage[600], palette.sage[400]] as const,
   gradientWarm: [palette.blush[400], palette.gold[300]] as const,
-  gradientHero: [palette.sage[400], palette.sage[200], palette.paper.bg] as const, // airy top-down
+  // Deep sage hero — dark enough that the white header text on it reads at AA
+  // top-to-bottom (previously faded to near-white #F7FAF8, giving ~2:1 white text).
+  // White large titles ≥ ~3:1 on the lightest stop; on-hero gold uses goldOnHero.
+  gradientHero: [palette.sage[900], palette.sage[800], palette.sage[700]] as const, // #2E4A40 → #3A6F5F → #488975
+  // Gold accent text that sits ON the hero gradient (display name, subtitle):
+  // must be LIGHT to read on the deep sage (the dark goldText is for light bgs).
+  goldOnHero: palette.gold[200], // #F5E3B4 — light gold, high contrast on deep sage
   tabActive: palette.sage[600], // #5BA28D
   tabInactive: '#AEB9B3', // soft stone-sage
   tabBg: palette.paper.surface, // #FFFFFF
@@ -137,11 +151,15 @@ export const darkTheme: ThemeColors = {
   textSubtle: '#82918A',
   primary: '#9FCBBC', // lightened sage for contrast on dark
   primaryDark: palette.sage[500], // #7BB0A0
+  primaryText: '#9FCBBC', // sage as TEXT on dark surfaces (AA ≥7:1)
   primaryFg: '#15201C',
   accent: '#EEB7B7', // softened blush pops on dark
   accentFg: '#3A1E1E',
+  accentText: '#EEB7B7', // blush as TEXT on dark surfaces (AA ≥6:1)
   gold: '#E9D08C', // pale gold pops on dark
   goldDark: palette.gold[400], // #E4C97E
+  goldText: '#E9D08C', // gold as TEXT on dark surfaces (AA ≥8:1)
+  goldOnHero: '#E9D08C', // dark hero is already deep — pale gold reads (AA ≥8:1)
   danger: '#E08077', // lightened brick for dark bg
   success: '#9FCBBC',
   shadow: 'rgba(0, 0, 0, 0.45)',

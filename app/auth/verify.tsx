@@ -68,9 +68,9 @@ export default function VerifyScreen() {
             <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.4 }}>
               Check your inbox
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14, marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 14, marginTop: 6, lineHeight: 20 }}>
               We sent a 6-digit code to{'\n'}
-              <Text style={{ fontWeight: '800', color: theme.gold }}>
+              <Text style={{ fontWeight: '800', color: theme.goldOnHero }}>
                 {pendingVerification?.email ?? 'your email'}
               </Text>
             </Text>

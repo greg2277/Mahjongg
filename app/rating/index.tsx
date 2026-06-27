@@ -41,7 +41,7 @@ export default function RatingHomeScreen() {
             <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginBottom: 12 }}>
               <Ionicons name="chevron-back" size={26} color="#FFF" />
             </Pressable>
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13, fontWeight: '700', letterSpacing: 1 }}>
               SPARROW RATING
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 4 }}>
@@ -52,7 +52,7 @@ export default function RatingHomeScreen() {
                 <Badge label={tier} tone="gold" />
               </View>
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 13, marginTop: 2 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13, marginTop: 2 }}>
               {rating ? confidenceLabel(rating.RD) : 'Sign in to track your rating'}
             </Text>
           </View>

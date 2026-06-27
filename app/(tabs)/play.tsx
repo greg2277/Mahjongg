@@ -97,7 +97,7 @@ export default function PlayScreen() {
             >
               4-player Multiplayer
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 4 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13, marginTop: 4 }}>
               Ranked, casual, and private rooms with invite codes.
             </Text>
             <View
@@ -108,10 +108,10 @@ export default function PlayScreen() {
                 gap: 6,
               }}
             >
-              <Text style={{ color: theme.gold, fontWeight: '800', fontSize: 13 }}>
+              <Text style={{ color: theme.goldOnHero, fontWeight: '800', fontSize: 13 }}>
                 Find a table
               </Text>
-              <Ionicons name="arrow-forward" size={14} color={theme.gold} />
+              <Ionicons name="arrow-forward" size={14} color={theme.goldOnHero} />
             </View>
           </LinearGradient>
         </Pressable>

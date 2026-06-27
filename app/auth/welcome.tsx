@@ -38,7 +38,7 @@ export default function WelcomeScreen() {
               </Text>
               <Text
                 style={{
-                  color: theme.gold,
+                  color: theme.goldOnHero,
                   fontSize: 11,
                   fontWeight: '800',
                   letterSpacing: 2,
@@ -49,7 +49,7 @@ export default function WelcomeScreen() {
               </Text>
               <Text
                 style={{
-                  color: 'rgba(255,255,255,0.82)',
+                  color: 'rgba(255,255,255,0.95)',
                   fontSize: 14,
                   textAlign: 'center',
                   marginTop: 18,

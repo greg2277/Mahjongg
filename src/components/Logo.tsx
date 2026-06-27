@@ -49,7 +49,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
         Sparrow
       </Text>
       {subtitle ? (
-        <Text style={{ fontSize: 11, color: theme.gold, fontWeight: '700', letterSpacing: 1.5 }}>
+        <Text style={{ fontSize: 11, color: theme.goldText, fontWeight: '700', letterSpacing: 1.5 }}>
           AMERICAN MAHJONG
         </Text>
       ) : null}

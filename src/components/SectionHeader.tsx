@@ -31,7 +31,7 @@ export function SectionHeader({
       </View>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} hitSlop={8}>
-          <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 13 }}>
+          <Text style={{ color: theme.primaryText, fontWeight: '700', fontSize: 13 }}>
             {actionLabel}
           </Text>
         </Pressable>

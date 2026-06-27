@@ -141,7 +141,7 @@ export default function SignUpScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 24, gap: 6 }}>
           <Text style={{ color: theme.textSubtle, fontSize: 14 }}>Already a member?</Text>
           <Pressable onPress={() => router.replace('/auth/sign-in')}>
-            <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '800' }}>Sign in</Text>
+            <Text style={{ color: theme.primaryText, fontSize: 14, fontWeight: '800' }}>Sign in</Text>
           </Pressable>
         </View>
       </ScrollView>

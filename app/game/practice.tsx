@@ -553,7 +553,7 @@ export default function PracticeScreen() {
                         borderRadius: 999,
                       }}
                     >
-                      <Text style={{ color: myHand.length === 14 ? theme.goldDark : theme.textSubtle, fontSize: 11, fontWeight: '800' }}>
+                      <Text style={{ color: myHand.length === 14 ? theme.goldText : theme.textSubtle, fontSize: 11, fontWeight: '800' }}>
                         {myHand.length} tiles · {myHand.length === 14 ? 'discard one' : 'waiting'}
                       </Text>
                     </View>
@@ -563,8 +563,8 @@ export default function PracticeScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     hitSlop={8}
                   >
-                    <Ionicons name="bulb-outline" size={16} color={theme.gold} />
-                    <Text style={{ color: theme.gold, fontSize: 13, fontWeight: '700' }}>Hint</Text>
+                    <Ionicons name="bulb-outline" size={16} color={theme.goldText} />
+                    <Text style={{ color: theme.goldText, fontSize: 13, fontWeight: '700' }}>Hint</Text>
                   </Pressable>
                 </View>
 

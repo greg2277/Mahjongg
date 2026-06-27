@@ -166,7 +166,7 @@ export default function LeaderboardScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 14 }}>
+                <Text style={{ color: theme.primaryText, fontWeight: '800', fontSize: 14 }}>
                   #{yourRank}
                 </Text>
               </View>

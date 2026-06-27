@@ -95,7 +95,7 @@ export default function NewSessionScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 13 }}>{i + 1}</Text>
+                <Text style={{ color: theme.primaryText, fontWeight: '800', fontSize: 13 }}>{i + 1}</Text>
               </View>
               <View style={{ flex: 2 }}>
                 <Text style={labelStyle(theme)}>{i === 0 ? 'YOU' : `PLAYER ${i + 1}`}</Text>

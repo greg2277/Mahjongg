@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/src/theme/ThemeProvider';
+import { palette } from '@/src/theme/colors';
 import { useUser } from '@/src/state/userStore';
 import { LogoMark, Wordmark } from '@/src/components/Logo';
 import { Card } from '@/src/components/Card';
@@ -74,7 +75,7 @@ export default function HomeScreen() {
                   </Text>
                   <Text
                     style={{
-                      color: theme.gold,
+                      color: theme.goldOnHero,
                       fontSize: 10,
                       fontWeight: '700',
                       letterSpacing: 1.4,
@@ -131,11 +132,11 @@ export default function HomeScreen() {
                 }}
               >
                 Welcome back,{'\n'}
-                <Text style={{ color: theme.gold }}>{profile.displayName}</Text>
+                <Text style={{ color: theme.goldOnHero }}>{profile.displayName}</Text>
               </Text>
               <Text
                 style={{
-                  color: 'rgba(255,255,255,0.78)',
+                  color: 'rgba(255,255,255,0.95)',
                   fontSize: 14,
                   marginTop: 8,
                   lineHeight: 20,
@@ -383,7 +384,7 @@ export default function HomeScreen() {
                     borderRadius: 10,
                   }}
                 >
-                  <Text style={{ color: theme.accent, fontWeight: '800', fontSize: 13 }}>
+                  <Text style={{ color: palette.blush[700], fontWeight: '800', fontSize: 13 }}>
                     Start →
                   </Text>
                 </Pressable>
